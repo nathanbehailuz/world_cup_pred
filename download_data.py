@@ -75,6 +75,13 @@ def download_martj42() -> pd.DataFrame:
     df = df.dropna(subset=["home_score", "away_score"])
     df["home_score"] = df["home_score"].astype(int)
     df["away_score"] = df["away_score"].astype(int)
+    # Team-name normalization can make distinct raw rows collide on the
+    # (date, home_team, away_team) unique key; keep the first occurrence.
+    before = len(df)
+    df = df.drop_duplicates(subset=["date", "home_team", "away_team"], keep="first")
+    dropped = before - len(df)
+    if dropped:
+        print(f"  Dropped {dropped} duplicate fixture(s) after name normalization.")
     return df[
         [
             "date",
