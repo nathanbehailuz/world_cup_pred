@@ -35,7 +35,7 @@ COMPETITIVE_KEYWORDS = (
 class TeamState:
     elo: float = INITIAL_ELO
     last_date: str | None = None
-    # deque of (date, points, goal_diff)
+    # deque of (date, points, goal_diff, goals_for, goals_against)
     history: deque = field(default_factory=lambda: deque(maxlen=10))
 
 
@@ -70,13 +70,16 @@ def goal_diff(home_score: int, away_score: int, for_home: bool) -> int:
     return (home_score - away_score) if for_home else (away_score - home_score)
 
 
-def rolling_stats(history: deque, window: int) -> tuple[float, float]:
+def rolling_stats(history: deque, window: int) -> tuple[float, float, float, float]:
+    """Return (points, goal_diff, goals_for, goals_against) over the window."""
     if not history:
-        return 0.0, 0.0
+        return 0.0, 0.0, 0.0, 0.0
     recent = list(history)[-window:]
     points = sum(item[1] for item in recent)
     gd = sum(item[2] for item in recent)
-    return float(points), float(gd)
+    gf = sum(item[3] for item in recent)
+    ga = sum(item[4] for item in recent)
+    return float(points), float(gd), float(gf), float(ga)
 
 
 def days_since(last_date: str | None, current_date: str) -> float:
@@ -127,10 +130,18 @@ def build_features(matches: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
         home_elo_pre = home_state.elo
         away_elo_pre = away_state.elo
 
-        home_pts_5, home_gd_5 = rolling_stats(home_state.history, 5)
-        away_pts_5, away_gd_5 = rolling_stats(away_state.history, 5)
-        home_pts_10, home_gd_10 = rolling_stats(home_state.history, 10)
-        away_pts_10, away_gd_10 = rolling_stats(away_state.history, 10)
+        home_pts_5, home_gd_5, home_gf_5, home_ga_5 = rolling_stats(
+            home_state.history, 5
+        )
+        away_pts_5, away_gd_5, away_gf_5, away_ga_5 = rolling_stats(
+            away_state.history, 5
+        )
+        home_pts_10, home_gd_10, home_gf_10, home_ga_10 = rolling_stats(
+            home_state.history, 10
+        )
+        away_pts_10, away_gd_10, away_gf_10, away_ga_10 = rolling_stats(
+            away_state.history, 10
+        )
 
         feature_rows.append(
             {
@@ -152,6 +163,18 @@ def build_features(matches: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
                 "home_form_gd_10": home_gd_10,
                 "away_form_gd_10": away_gd_10,
                 "form_gd_10_diff": home_gd_10 - away_gd_10,
+                "home_form_gf_5": home_gf_5,
+                "away_form_gf_5": away_gf_5,
+                "form_gf_5_diff": home_gf_5 - away_gf_5,
+                "home_form_ga_5": home_ga_5,
+                "away_form_ga_5": away_ga_5,
+                "form_ga_5_diff": home_ga_5 - away_ga_5,
+                "home_form_gf_10": home_gf_10,
+                "away_form_gf_10": away_gf_10,
+                "form_gf_10_diff": home_gf_10 - away_gf_10,
+                "home_form_ga_10": home_ga_10,
+                "away_form_ga_10": away_ga_10,
+                "form_ga_10_diff": home_ga_10 - away_ga_10,
                 "home_days_since_last": days_since(home_state.last_date, match_date),
                 "away_days_since_last": days_since(away_state.last_date, match_date),
                 "neutral": int(neutral),
@@ -177,8 +200,12 @@ def build_features(matches: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
         home_gd_val = goal_diff(row.home_score, row.away_score, for_home=True)
         away_gd_val = goal_diff(row.home_score, row.away_score, for_home=False)
 
-        home_state.history.append((match_date, home_pts, home_gd_val))
-        away_state.history.append((match_date, away_pts, away_gd_val))
+        home_state.history.append(
+            (match_date, home_pts, home_gd_val, row.home_score, row.away_score)
+        )
+        away_state.history.append(
+            (match_date, away_pts, away_gd_val, row.away_score, row.home_score)
+        )
         home_state.last_date = match_date
         away_state.last_date = match_date
 
@@ -186,16 +213,20 @@ def build_features(matches: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
 
     rating_rows = []
     for team, state in teams.items():
-        pts_5, gd_5 = rolling_stats(state.history, 5)
-        pts_10, gd_10 = rolling_stats(state.history, 10)
+        pts_5, gd_5, gf_5, ga_5 = rolling_stats(state.history, 5)
+        pts_10, gd_10, gf_10, ga_10 = rolling_stats(state.history, 10)
         rating_rows.append(
             {
                 "team": team,
                 "elo": state.elo,
                 "form_pts_5": pts_5,
                 "form_gd_5": gd_5,
+                "form_gf_5": gf_5,
+                "form_ga_5": ga_5,
                 "form_pts_10": pts_10,
                 "form_gd_10": gd_10,
+                "form_gf_10": gf_10,
+                "form_ga_10": ga_10,
                 "last_match_date": state.last_date,
             }
         )

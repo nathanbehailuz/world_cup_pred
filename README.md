@@ -33,6 +33,22 @@ python predict.py "France" "Brazil" --neutral
 | `models/xgb_model.json` | Trained XGBoost model |
 | `DEVLOG.md` | Running project documentation |
 
+## Keeping predictions current during the tournament
+
+The model's inputs (Elo, recent form) are computed from the latest data in the
+database. To make knockout-stage predictions reflect group-stage results,
+re-run the data and feature steps after each matchday:
+
+```bash
+python download_data.py        # pulls latest results
+python feature_engineering.py  # updates Elo and form ratings
+python train.py                # optional: refit production model
+python predict.py "France" "Brazil" --neutral
+```
+
+Note: World Cup 2026 hosts (USA, Mexico, Canada) play true home matches —
+omit `--neutral` for those.
+
 ## Data source
 
 - [martj42/international_results](https://github.com/martj42/international_results) — international match history through mid-2026

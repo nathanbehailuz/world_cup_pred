@@ -21,8 +21,9 @@ OUTCOME_LABELS = ("home_win", "draw", "away_win")
 
 def load_team_rating(conn: sqlite3.Connection, team: str) -> dict:
     row = conn.execute(
-        "SELECT team, elo, form_pts_5, form_gd_5, form_pts_10, form_gd_10, "
-        "last_match_date FROM team_ratings WHERE team = ?",
+        "SELECT team, elo, form_pts_5, form_gd_5, form_gf_5, form_ga_5, "
+        "form_pts_10, form_gd_10, form_gf_10, form_ga_10, last_match_date "
+        "FROM team_ratings WHERE team = ?",
         (team,),
     ).fetchone()
     if row is None:
@@ -37,9 +38,13 @@ def load_team_rating(conn: sqlite3.Connection, team: str) -> dict:
         "elo": row[1],
         "form_pts_5": row[2],
         "form_gd_5": row[3],
-        "form_pts_10": row[4],
-        "form_gd_10": row[5],
-        "last_match_date": row[6],
+        "form_gf_5": row[4],
+        "form_ga_5": row[5],
+        "form_pts_10": row[6],
+        "form_gd_10": row[7],
+        "form_gf_10": row[8],
+        "form_ga_10": row[9],
+        "last_match_date": row[10],
     }
 
 
@@ -55,6 +60,10 @@ def build_feature_vector(
         "form_gd_5_diff": home["form_gd_5"] - away["form_gd_5"],
         "form_pts_10_diff": home["form_pts_10"] - away["form_pts_10"],
         "form_gd_10_diff": home["form_gd_10"] - away["form_gd_10"],
+        "form_gf_5_diff": home["form_gf_5"] - away["form_gf_5"],
+        "form_ga_5_diff": home["form_ga_5"] - away["form_ga_5"],
+        "form_gf_10_diff": home["form_gf_10"] - away["form_gf_10"],
+        "form_ga_10_diff": home["form_ga_10"] - away["form_ga_10"],
         "home_days_since_last": 30.0,
         "away_days_since_last": 30.0,
         "neutral": int(neutral),
