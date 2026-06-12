@@ -2,32 +2,37 @@
 
 from __future__ import annotations
 
+import argparse
+import math
 import sqlite3
 from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 DB_PATH = Path(__file__).parent / "data" / "worldcup.db"
 
 INITIAL_ELO = 1500.0
 HOME_ADVANTAGE = 100.0
-K_FRIENDLY = 20.0
-K_COMPETITIVE = 40.0
 
-COMPETITIVE_KEYWORDS = (
-    "world cup",
+# Continental championship finals and major intercontinental tournaments.
+CONTINENTAL_FINALS_KEYWORDS = (
+    "uefa euro",
     "european championship",
-    "euro",
+    "copa américa",
     "copa america",
-    "african cup",
+    "african cup of nations",
+    "africa cup of nations",
+    "afc asian cup",
     "asian cup",
-    "nations league",
-    "qualif",
-    "olympic",
-    "confederations",
+    "gold cup",
+    "concacaf championship",
+    "oceania nations cup",
+    "ofc nations cup",
+    "confederations cup",
 )
 
 
@@ -39,13 +44,30 @@ class TeamState:
     history: deque = field(default_factory=lambda: deque(maxlen=10))
 
 
-def is_competitive(tournament: str | None) -> bool:
+def k_factor(tournament: str | None) -> float:
+    """Tiered K following the eloratings.net convention.
+
+    60 World Cup finals; 50 continental finals and major intercontinental
+    tournaments; 40 qualifiers and Nations League; 30 other tournaments;
+    20 friendlies.
+    """
     if not tournament:
-        return False
+        return 20.0
     name = tournament.lower()
     if "friendly" in name:
-        return False
-    return any(keyword in name for keyword in COMPETITIVE_KEYWORDS)
+        return 20.0
+    if "qualif" in name or "nations league" in name:
+        return 40.0
+    if "fifa world cup" in name or name == "world cup":
+        return 60.0
+    if any(keyword in name for keyword in CONTINENTAL_FINALS_KEYWORDS):
+        return 50.0
+    return 30.0
+
+
+def is_competitive(tournament: str | None) -> bool:
+    """Major-competition flag: qualifiers, Nations League, and finals (K >= 40)."""
+    return k_factor(tournament) >= 40.0
 
 
 def expected_score(rating_a: float, rating_b: float) -> float:
@@ -90,25 +112,84 @@ def days_since(last_date: str | None, current_date: str) -> float:
     return float((d1 - d0).days)
 
 
-def outcome_label(home_score: int, away_score: int) -> int:
-    """0 = home win, 1 = draw, 2 = away win."""
+def outcome_label(
+    home_score: int,
+    away_score: int,
+    shootout_winner: str | None,
+    home_team: str,
+    away_team: str,
+) -> int:
+    """0 = home win, 1 = draw, 2 = away win.
+
+    The target is the match WINNER regardless of how it was decided: a match
+    level after extra time but settled on penalties is labeled with the
+    shootout winner, not a draw. Draws are matches with no winner at all.
+    """
     if home_score > away_score:
         return 0
-    if home_score == away_score:
-        return 1
-    return 2
+    if home_score < away_score:
+        return 2
+    if shootout_winner == home_team:
+        return 0
+    if shootout_winner == away_team:
+        return 2
+    return 1
 
 
-def load_matches(conn: sqlite3.Connection) -> pd.DataFrame:
+def load_squad_snapshots(conn: sqlite3.Connection) -> pd.DataFrame | None:
+    row = conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='squad_values'"
+    ).fetchone()
+    if row is None:
+        return None
     df = pd.read_sql_query(
-        "SELECT date, home_team, away_team, home_score, away_score, "
-        "tournament, neutral FROM matches ORDER BY date ASC",
+        "SELECT team, snapshot_date, total_value_top25 "
+        "FROM squad_values ORDER BY team, snapshot_date",
         conn,
     )
+    if df.empty:
+        return None
     return df
 
 
-def build_features(matches: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+def squad_value_as_of(
+    snapshots: pd.DataFrame, team: str, as_of: str
+) -> float | None:
+    """Latest squad total strictly before as_of; None if unavailable."""
+    team_snaps = snapshots[snapshots["team"] == team]
+    if team_snaps.empty:
+        return None
+    prior = team_snaps[team_snaps["snapshot_date"] < as_of]
+    if prior.empty:
+        return None
+    return float(prior.iloc[-1]["total_value_top25"])
+
+
+def squad_value_log(value: float | None) -> float:
+    if value is None or (isinstance(value, float) and math.isnan(value)):
+        return float("nan")
+    return float(np.log1p(value))
+
+
+def load_matches(conn: sqlite3.Connection, cutoff: str | None = None) -> pd.DataFrame:
+    query = (
+        "SELECT date, home_team, away_team, home_score, away_score, "
+        "tournament, neutral, shootout_winner FROM matches"
+    )
+    params: tuple = ()
+    if cutoff:
+        query += " WHERE date < ?"
+        params = (cutoff,)
+    query += " ORDER BY date ASC"
+    df = pd.read_sql_query(query, conn, params=params)
+    return df
+
+
+def build_features(
+    matches: pd.DataFrame,
+    squad_snapshots: pd.DataFrame | None = None,
+    ratings_as_of: str | None = None,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
     teams: dict[str, TeamState] = {}
     feature_rows: list[dict] = []
 
@@ -142,6 +223,19 @@ def build_features(matches: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
         away_pts_10, away_gd_10, away_gf_10, away_ga_10 = rolling_stats(
             away_state.history, 10
         )
+
+        if squad_snapshots is not None:
+            home_squad = squad_value_as_of(squad_snapshots, home, match_date)
+            away_squad = squad_value_as_of(squad_snapshots, away, match_date)
+            home_squad_log = squad_value_log(home_squad)
+            away_squad_log = squad_value_log(away_squad)
+            squad_diff = (
+                home_squad_log - away_squad_log
+                if not (math.isnan(home_squad_log) or math.isnan(away_squad_log))
+                else float("nan")
+            )
+        else:
+            home_squad_log = away_squad_log = squad_diff = float("nan")
 
         feature_rows.append(
             {
@@ -179,12 +273,23 @@ def build_features(matches: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
                 "away_days_since_last": days_since(away_state.last_date, match_date),
                 "neutral": int(neutral),
                 "competitive": int(competitive),
-                "outcome": outcome_label(row.home_score, row.away_score),
+                "home_squad_value_log": home_squad_log,
+                "away_squad_value_log": away_squad_log,
+                "squad_value_log_diff": squad_diff,
+                "outcome": outcome_label(
+                    row.home_score,
+                    row.away_score,
+                    row.shootout_winner,
+                    home,
+                    away,
+                ),
             }
         )
 
-        # Update Elo after recording pre-match features.
-        k = K_COMPETITIVE if competitive else K_FRIENDLY
+        # Update Elo after recording pre-match features. Ratings use the
+        # on-field result (a shootout is a near-coin-flip tiebreaker and
+        # carries little information about team strength).
+        k = k_factor(row.tournament)
         home_adj = home_elo_pre + (0.0 if neutral else HOME_ADVANTAGE)
         away_adj = away_elo_pre
 
@@ -211,10 +316,19 @@ def build_features(matches: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
 
     features_df = pd.DataFrame(feature_rows)
 
+    squad_lookup_date = ratings_as_of
+    if squad_lookup_date is None and not matches.empty:
+        squad_lookup_date = matches["date"].max()
+
     rating_rows = []
     for team, state in teams.items():
         pts_5, gd_5, gf_5, ga_5 = rolling_stats(state.history, 5)
         pts_10, gd_10, gf_10, ga_10 = rolling_stats(state.history, 10)
+        squad_raw = (
+            squad_value_as_of(squad_snapshots, team, squad_lookup_date)
+            if squad_snapshots is not None and squad_lookup_date
+            else None
+        )
         rating_rows.append(
             {
                 "team": team,
@@ -228,6 +342,8 @@ def build_features(matches: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
                 "form_gf_10": gf_10,
                 "form_ga_10": ga_10,
                 "last_match_date": state.last_date,
+                "squad_value_top25": squad_raw,
+                "squad_value_log": squad_value_log(squad_raw),
             }
         )
     ratings_df = pd.DataFrame(rating_rows).sort_values("elo", ascending=False)
@@ -243,17 +359,27 @@ def save_tables(
     conn.commit()
 
 
-def main() -> None:
+def run_feature_engineering(cutoff: str | None = None) -> None:
     if not DB_PATH.exists():
         raise FileNotFoundError(
             f"{DB_PATH} not found. Run download_data.py first."
         )
 
     conn = sqlite3.connect(DB_PATH)
-    matches = load_matches(conn)
-    print(f"Loaded {len(matches)} matches for feature engineering.")
+    matches = load_matches(conn, cutoff=cutoff)
+    squad_snapshots = load_squad_snapshots(conn)
+    label = f" (before {cutoff})" if cutoff else ""
+    print(f"Loaded {len(matches)} matches for feature engineering{label}.")
+    if squad_snapshots is None:
+        print("No squad_values table found; squad features will be NaN.")
+    else:
+        print(f"Loaded {len(squad_snapshots):,} squad snapshot rows.")
 
-    features, ratings = build_features(matches)
+    features, ratings = build_features(
+        matches,
+        squad_snapshots=squad_snapshots,
+        ratings_as_of=cutoff,
+    )
     save_tables(conn, features, ratings)
 
     print(f"Wrote {len(features)} rows to features table.")
@@ -263,6 +389,17 @@ def main() -> None:
         print(f"  {rank:2d}. {row.team:<20s} {row.elo:7.1f}")
 
     conn.close()
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Compute Elo and form features.")
+    parser.add_argument(
+        "--cutoff",
+        metavar="YYYY-MM-DD",
+        help="Only use matches strictly before this date (point-in-time ratings)",
+    )
+    args = parser.parse_args()
+    run_feature_engineering(cutoff=args.cutoff)
 
 
 if __name__ == "__main__":

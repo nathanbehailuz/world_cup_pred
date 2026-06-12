@@ -10,25 +10,42 @@ source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-## Pipeline
+## Quick start
 
-Run in order:
+```bash
+python main.py MEX RSA          # schedule-aware full pipeline
+python main.py FRA SEN          # looks up fixture date + venue
+python main.py FRA BRA --neutral   # no WC fixture: uses today's data
+```
+
+`main.py` resolves FIFA codes, reloads the WC 2026 schedule, caps historical
+data at `min(today, match date)` for point-in-time correctness, then runs
+download → features → train → predict. Skips redundant downloads and
+retraining when data and cutoff are unchanged.
+
+Teams are given as official FIFA three-letter codes (FRA, BRA, MEX, RSA, ...);
+full names ("France") also work. The mapping lives in `fifa_codes.py`.
+
+### Manual pipeline (step by step)
 
 ```bash
 python download_data.py
 python feature_engineering.py
 python train.py
-python predict.py "France" "Brazil" --neutral
+python predict.py FRA BRA --neutral
 ```
 
 ## Project layout
 
 | File | Purpose |
 |------|---------|
+| `main.py` | **Primary entry point** — full schedule-aware pipeline |
+| `download_schedule.py` | Fetch/reload WC 2026 fixtures (run after each matchday) |
 | `download_data.py` | Fetch martj42 international results into SQLite |
 | `feature_engineering.py` | Compute point-in-time Elo, form features |
 | `train.py` | Train baseline + XGBoost, evaluate, save model |
 | `predict.py` | Predict W/D/L probabilities for two teams |
+| `fifa_codes.py` | Official FIFA three-letter codes mapped to team names |
 | `data/worldcup.db` | SQLite database (matches, features, ratings) |
 | `models/xgb_model.json` | Trained XGBoost model |
 | `DEVLOG.md` | Running project documentation |
@@ -36,19 +53,18 @@ python predict.py "France" "Brazil" --neutral
 
 ## Keeping predictions current during the tournament
 
-The model's inputs (Elo, recent form) are computed from the latest data in the
-database. To make knockout-stage predictions reflect group-stage results,
-re-run the data and feature steps after each matchday:
+After each matchday, reload the schedule (picks up results and knockout
+placeholders resolving to real teams), then predict:
 
 ```bash
-python download_data.py        # pulls latest results
-python feature_engineering.py  # updates Elo and form ratings
-python train.py                # optional: refit production model
-python predict.py "France" "Brazil" --neutral
+python download_schedule.py    # reload fixtures + print what changed
+python main.py FRA SEN         # full pipeline with fresh data
 ```
 
-Note: World Cup 2026 hosts (USA, Mexico, Canada) play true home matches —
-omit `--neutral` for those.
+Or use `main.py` alone — it refreshes the schedule automatically on every run.
+
+`main.py` infers home advantage for USA/Mexico/Canada host venues; override
+with `--neutral` or `--home` if needed.
 
 ## Data source
 
