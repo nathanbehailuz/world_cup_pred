@@ -258,7 +258,9 @@ def main() -> None:
 
     print(f"Wrote {len(features)} rows to features table.")
     print(f"Wrote {len(ratings)} teams to team_ratings table.")
-    print(f"Top 5 Elo: {ratings.head()[['team', 'elo']].to_string(index=False)}")
+    print("\nTop 10 by Elo:")
+    for rank, row in enumerate(ratings.head(10).itertuples(index=False), start=1):
+        print(f"  {rank:2d}. {row.team:<20s} {row.elo:7.1f}")
 
     conn.close()
 

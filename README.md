@@ -32,6 +32,7 @@ python predict.py "France" "Brazil" --neutral
 | `data/worldcup.db` | SQLite database (matches, features, ratings) |
 | `models/xgb_model.json` | Trained XGBoost model |
 | `DEVLOG.md` | Running project documentation |
+| `METHODOLOGY.md` | Report on features, models, and evaluation protocol |
 
 ## Keeping predictions current during the tournament
 
