@@ -9,7 +9,7 @@ from download_data import get_connection, run_download
 from download_squad_values import run_squad_download
 from download_schedule import find_fixture, infer_neutral, refresh_schedule
 from feature_engineering import run_feature_engineering
-from predict import OUTCOME_LABELS, format_probs, predict, resolve_team
+from predict import format_probs, predict, resolve_team
 from train import run_train
 
 
@@ -108,15 +108,9 @@ def run_pipeline(
     probs = predict(home_team, away_team, neutral=neutral)
     print(format_probs(home_team, away_team, probs))
     print("\nDetailed probabilities:")
-    for label, outcome in zip(OUTCOME_LABELS, (home_team, "Draw", away_team)):
-        key = (
-            f"{home_team}_win"
-            if outcome == home_team
-            else f"{away_team}_win"
-            if outcome == away_team
-            else "draw"
-        )
-        print(f"  {outcome} ({label}): {probs[key]:.4f}")
+    print(f"  {home_team} win: {probs[f'{home_team}_win']:.4f}")
+    print(f"  Draw: {probs['draw']:.4f}")
+    print(f"  {away_team} win: {probs[f'{away_team}_win']:.4f}")
 
 
 def main() -> None:

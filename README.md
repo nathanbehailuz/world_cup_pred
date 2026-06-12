@@ -20,8 +20,14 @@ python main.py FRA BRA --neutral   # no WC fixture: uses today's data
 
 `main.py` resolves FIFA codes, reloads the WC 2026 schedule, caps historical
 data at `min(today, match date)` for point-in-time correctness, then runs
-download → features → train → predict. Skips redundant downloads and
-retraining when data and cutoff are unchanged.
+download → squad values → features → train → predict.
+
+**Pipeline caching:** each stage skips work when already current:
+- `download_data.py` — skips if martj42 data covers today (use `--force-download` to override)
+- `download_squad_values.py` — skips if `squad_values` table exists (use `--force-download` to refresh)
+- `train.py` — skips retraining if the same cutoff was used and analysis is already in `model_meta.json` (use `--retrain` to force)
+
+Predictions are reported as **Team A win / Draw / Team B win**; internally the model uses home/away slots from historical data, with mirror-averaging on neutral venues.
 
 Teams are given as official FIFA three-letter codes (FRA, BRA, MEX, RSA, ...);
 full names ("France") also work. The mapping lives in `fifa_codes.py`.
@@ -43,7 +49,8 @@ python predict.py FRA BRA --neutral
 | `download_schedule.py` | Fetch/reload WC 2026 fixtures (run after each matchday) |
 | `download_data.py` | Fetch martj42 international results into SQLite |
 | `feature_engineering.py` | Compute point-in-time Elo, form features |
-| `train.py` | Train baseline + XGBoost, evaluate, save model |
+| `download_squad_values.py` | Fetch transfermarkt valuations, build squad snapshots |
+| `train.py` | Train baselines + XGBoost, ablation grid, analysis, save model |
 | `predict.py` | Predict W/D/L probabilities for two teams |
 | `fifa_codes.py` | Official FIFA three-letter codes mapped to team names |
 | `data/worldcup.db` | SQLite database (matches, features, ratings) |

@@ -4,6 +4,24 @@ Running documentation for the World Cup 2026 match predictor. Newest entries fir
 
 ---
 
+## 2026-06-12 — Methodology report hardening
+
+**Evaluation additions** (`train.py`):
+- Constant-prior baseline (log loss 1.0469) — confirms Elo and XGBoost beat naive class frequencies.
+- Bootstrap 95% CIs (1,000 resamples): production XGBoost 0.8327 [0.805, 0.860]; Elo 0.8355 [0.811, 0.862].
+- Paired bootstrap for XGBoost − Elo: −0.0028 [−0.012, 0.007] — **CI includes zero**; improvement is marginal, not definitive.
+- Permutation importance: `elo_diff` dominates (+0.202 Δ log loss); `squad_value_log_diff` second (+0.021); form/rest near-zero.
+- Error-analysis slices by Elo gap, neutral/non-neutral, and true outcome class — stored in `model_meta.json`.
+- Sample predictions table (test-set examples + FRA/BRA symmetry check).
+
+**Documentation** (`METHODOLOGY.md`):
+- Target-definition paragraph: final/advancement outcome vs 90-minute result; draw structurally unavailable in knockouts.
+- Sections 5.4–5.5 (baselines, model-selection caveat), 6.4–6.6 (error analysis, importance, samples).
+- Softened calibration conclusion; trimmed inference walkthrough; moved pipeline caching to README.
+- User-facing output clarified as Team A / Draw / Team B (`predict.py`, `main.py`).
+
+---
+
 ## 2026-06-12 — Squad-value features + competitive-flag ablation
 
 **What was built**

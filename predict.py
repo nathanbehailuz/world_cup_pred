@@ -179,15 +179,9 @@ def main() -> None:
 
     print(format_probs(home_team, away_team, probs))
     print("\nDetailed probabilities:")
-    for label, outcome in zip(OUTCOME_LABELS, (home_team, "Draw", away_team)):
-        key = (
-            f"{home_team}_win"
-            if outcome == home_team
-            else f"{away_team}_win"
-            if outcome == away_team
-            else "draw"
-        )
-        print(f"  {outcome} ({label}): {probs[key]:.4f}")
+    print(f"  {home_team} win: {probs[f'{home_team}_win']:.4f}")
+    print(f"  Draw: {probs['draw']:.4f}")
+    print(f"  {away_team} win: {probs[f'{away_team}_win']:.4f}")
 
 
 if __name__ == "__main__":
