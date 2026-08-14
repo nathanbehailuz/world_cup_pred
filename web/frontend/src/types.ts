@@ -2,6 +2,7 @@
 
 export type Outcome = 'home_win' | 'draw' | 'away_win'
 export type VenueMode = 'neutral' | 'home_a' | 'wc_venue'
+export type MatchStatus = 'upcoming' | 'final'
 
 export interface Team {
   code: string
@@ -17,31 +18,71 @@ export interface ProbabilityVector {
 export interface PredictRequest {
   team_a: string
   team_b: string
-  venue: VenueMode
-  as_of: string
 }
 
 export interface FeatureSnapshot {
   metric: string
-  team_a: string | number
-  team_b: string | number
+  team_a: string | number | null
+  team_b: string | number | null
 }
 
-export interface PredictResponse {
-  team_a: Team
-  team_b: Team
-  venue: VenueMode
-  as_of: string
-  feature_cutoff: string
+/** Live WC simulation row — same fields as Evaluate, plus venue/status. */
+export interface SimMatch {
+  id: string
+  match_number?: number
+  date: string
+  location?: string
+  team_a: string
+  team_b: string
+  team_a_code: string
+  team_b_code: string
+  tournament: string
+  group_name?: string | null
+  round?: string | null
+  competitive: boolean
+  neutral?: boolean
+  venue_label?: string
   probabilities: ProbabilityVector
-  favorite: 'A' | 'Draw' | 'B'
-  confidence: number
-  features: FeatureSnapshot[]
-  top_importance: { feature: string; value: number }[]
-  disclaimer: string
-  source: 'mock' | 'api'
+  predicted: Outcome
+  actual: Outcome | null
+  actual_label: string | null
+  correct: boolean | null
+  log_loss: number | null
+  elo_gap: number
+  score?: string | null
+  status: MatchStatus
+  narrative?: string
+  features?: FeatureSnapshot[]
+  disclaimer?: string
+  source?: 'mock' | 'api'
 }
 
+export interface SimSummary {
+  n: number
+  n_played: number
+  accuracy: number
+  mean_log_loss: number
+  confusion: number[][]
+}
+
+export interface WcScheduleFixture {
+  match_number: number
+  date: string
+  location: string
+  home_team: string
+  away_team: string
+  home_code: string
+  away_code: string
+  round: string | null
+  group_name: string | null
+  home_score: number | null
+  away_score: number | null
+  status: MatchStatus
+  neutral: boolean
+  venue_label: string
+}
+
+/** @deprecated Prefer SimMatch for Predict; kept for Evaluate holdout. */
 export interface HoldoutMatch {
   id: string
   date: string
