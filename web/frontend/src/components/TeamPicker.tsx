@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { Team } from '../types'
 import { listTeams } from '../api/client'
 import { Icon } from './Icon'
+import { TeamFlag } from './TeamFlag'
 
 export function TeamPicker({
   label,
@@ -43,7 +44,13 @@ export function TeamPicker({
     <div className="flex-1 w-full relative" ref={wrapRef}>
       <label className="block font-label-caps text-slate-gray mb-2">{label}</label>
       <div className="relative flex items-center w-full">
-        <Icon name="search" className="absolute left-3 text-outline text-[20px]" />
+        <span className="absolute left-3 flex items-center pointer-events-none">
+          {value ? (
+            <TeamFlag name={value} size="sm" />
+          ) : (
+            <Icon name="search" className="text-outline text-[20px]" />
+          )}
+        </span>
         <input
           className="w-full bg-surface-container pl-10 pr-4 py-3 rounded border border-outline-variant text-body-md text-primary focus:outline-none focus:border-pitch-green focus:ring-1 focus:ring-pitch-green transition-all"
           placeholder="Search FIFA team..."
@@ -61,15 +68,18 @@ export function TeamPicker({
             <li key={t.code}>
               <button
                 type="button"
-                className="w-full text-left px-3 py-2 text-body-sm hover:bg-surface-container transition-colors flex justify-between"
+                className="w-full text-left px-3 py-2 text-body-sm hover:bg-surface-container transition-colors flex items-center justify-between gap-2"
                 onClick={() => {
                   onChange(t.name)
                   setQuery(t.name)
                   setOpen(false)
                 }}
               >
-                <span>{t.name}</span>
-                <span className="font-data-mono text-slate-gray">{t.code}</span>
+                <span className="inline-flex items-center gap-2 min-w-0">
+                  <TeamFlag code={t.code} name={t.name} size="sm" />
+                  <span className="truncate">{t.name}</span>
+                </span>
+                <span className="font-data-mono text-slate-gray shrink-0">{t.code}</span>
               </button>
             </li>
           ))}

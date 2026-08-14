@@ -10,6 +10,7 @@ import { ProbabilityBar } from '../components/ProbabilityBar'
 import { ConfusionMatrix, runningConfusion } from '../components/ConfusionMatrix'
 import { LabelCallout } from '../components/LabelCallout'
 import { Icon } from '../components/Icon'
+import { TeamFlag, TeamLabel } from '../components/TeamFlag'
 import { pct } from '../lib/format'
 import type { SimMatch, SimSummary } from '../types'
 
@@ -61,7 +62,8 @@ function MatchResultCanvas({ match }: { match: SimMatch }) {
               {match.group_name ? ` · ${match.group_name}` : ''}
             </div>
             <div className="relative flex justify-center items-center gap-6 md:gap-10">
-              <div className="flex flex-col items-center gap-1 min-w-[5rem]">
+              <div className="flex flex-col items-center gap-2 min-w-[5rem]">
+                <TeamFlag code={match.team_a_code} name={match.team_a} size="lg" />
                 <span className="text-headline-lg text-primary tracking-tight">{match.team_a_code}</span>
                 <span className="text-body-sm text-on-surface-variant">{match.team_a}</span>
               </div>
@@ -84,23 +86,38 @@ function MatchResultCanvas({ match }: { match: SimMatch }) {
                   <span className="font-label-caps text-outline text-[11px]">Upcoming</span>
                 )}
               </div>
-              <div className="flex flex-col items-center gap-1 min-w-[5rem]">
+              <div className="flex flex-col items-center gap-2 min-w-[5rem]">
+                <TeamFlag code={match.team_b_code} name={match.team_b} size="lg" />
                 <span className="text-headline-lg text-pitch-green tracking-tight">{match.team_b_code}</span>
                 <span className="text-body-sm text-on-surface-variant">{match.team_b}</span>
               </div>
             </div>
-            <div className="relative mt-6 text-body-sm text-on-surface-variant">
+            <div className="relative mt-6 text-body-sm text-on-surface-variant flex items-center justify-center gap-2 flex-wrap">
               Favorite{' '}
-              <span className="text-primary font-semibold">{fav.name}</span>{' '}
+              {fav.name === 'Draw' ? (
+                <span className="text-primary font-semibold">{fav.name}</span>
+              ) : (
+                <TeamLabel
+                  name={fav.name}
+                  size="sm"
+                  nameClassName="text-primary font-semibold"
+                />
+              )}{' '}
               <span className="font-data-mono text-pitch-green">{pct(fav.confidence)}</span>
             </div>
           </div>
 
           <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-6 flex flex-col gap-4">
-            <div className="flex justify-between items-center font-label-caps text-primary">
-              <span>{match.team_a}</span>
-              <span className="text-slate-gray">Draw</span>
-              <span>{match.team_b}</span>
+            <div className="flex justify-between items-center font-label-caps text-primary gap-2">
+              <TeamLabel name={match.team_a} code={match.team_a_code} size="sm" nameClassName="font-label-caps" />
+              <span className="text-slate-gray shrink-0">Draw</span>
+              <TeamLabel
+                name={match.team_b}
+                code={match.team_b_code}
+                size="sm"
+                className="justify-end"
+                nameClassName="font-label-caps"
+              />
             </div>
             <ProbabilityBar
               probabilities={match.probabilities}
@@ -163,8 +180,18 @@ function MatchResultCanvas({ match }: { match: SimMatch }) {
                 <thead>
                   <tr className="border-b border-outline-variant font-label-caps text-slate-gray">
                     <th className="py-2 px-3 font-normal">Metric</th>
-                    <th className="py-2 px-3 text-right font-normal">{match.team_a_code}</th>
-                    <th className="py-2 px-3 text-right font-normal">{match.team_b_code}</th>
+                    <th className="py-2 px-3 text-right font-normal">
+                      <span className="inline-flex items-center justify-end gap-1.5">
+                        <TeamFlag code={match.team_a_code} name={match.team_a} size="sm" />
+                        {match.team_a_code}
+                      </span>
+                    </th>
+                    <th className="py-2 px-3 text-right font-normal">
+                      <span className="inline-flex items-center justify-end gap-1.5">
+                        <TeamFlag code={match.team_b_code} name={match.team_b} size="sm" />
+                        {match.team_b_code}
+                      </span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -432,9 +459,13 @@ export function PredictPage() {
                           {m.date}
                         </td>
                         <td className="py-2.5 px-4">
-                          <div className="flex flex-col">
-                            <span className="text-body-sm font-semibold text-primary">
-                              {m.team_a} vs {m.team_b}
+                          <div className="flex flex-col gap-0.5">
+                            <span className="text-body-sm font-semibold text-primary inline-flex items-center gap-1.5 flex-wrap">
+                              <TeamFlag code={m.team_a_code} name={m.team_a} size="sm" />
+                              {m.team_a}
+                              <span className="text-outline font-normal">vs</span>
+                              <TeamFlag code={m.team_b_code} name={m.team_b} size="sm" />
+                              {m.team_b}
                             </span>
                             <span className="font-label-caps text-outline">
                               {m.venue_label}

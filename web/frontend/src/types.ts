@@ -158,11 +158,42 @@ export interface ModelBaselines {
   production_xgboost: { log_loss: number; brier_score: number; accuracy: number }
 }
 
+export interface CalibrationBin {
+  bin: string
+  n: number
+  mean_predicted: number
+  empirical: number
+}
+
+export interface ErrorSlice {
+  slice: string
+  n: number
+  log_loss: number
+  brier_score: number
+  accuracy: number
+  mean_predicted_draw: number
+}
+
+export interface SamplePrediction {
+  category: string
+  date: string | null
+  team_a: string
+  team_b: string
+  neutral: boolean
+  elo_diff: number | null
+  team_a_win: number
+  draw: number
+  team_b_win: number
+  actual_outcome: number | null
+  comment: string
+}
+
 export interface ModelMeta {
   feature_cutoff: string
   train_cutoff: string
   min_match_date: string
   selected_config: string
+  competitive_only?: boolean
   production_fit_rows: number
   production_fit_through: string
   baselines: ModelBaselines
@@ -172,7 +203,10 @@ export interface ModelMeta {
   >
   feature_importance: {
     permutation: { feature: string; delta_log_loss_mean: number; delta_log_loss_std: number }[]
-    gain: { feature: string; gain: number }[]
+    /** @deprecated older frontend exports used a single `gain` list */
+    gain?: { feature: string; gain: number }[]
+    gain_experiment_model?: { feature: string; gain: number }[]
+    gain_production_model?: { feature: string; gain: number }[]
   }
   experiments: {
     label: string
@@ -184,6 +218,10 @@ export interface ModelMeta {
     xgb_metrics: { log_loss: number; brier_score: number; accuracy: number }
   }[]
   feature_columns: string[]
+  calibration?: Record<string, CalibrationBin[]>
+  error_analysis?: ErrorSlice[]
+  sample_predictions?: SamplePrediction[]
+  outcome_labels?: string[]
 }
 
 export interface FeatureGlossaryItem {

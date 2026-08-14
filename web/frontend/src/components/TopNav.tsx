@@ -8,8 +8,7 @@ const NAV = [
   { to: '/methodology', label: 'Methodology' },
   { to: '/predict', label: 'Predict' },
   { to: '/evaluate', label: 'Evaluate' },
-  { to: '/results', label: 'Results' },
-  { to: '/wc2026', label: 'WC 2026' },
+  { to: '/analysis', label: 'Model Analysis' },
 ]
 
 export function TopNav() {

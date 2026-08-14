@@ -4,8 +4,7 @@ import { HomePage } from './pages/HomePage'
 import { MethodologyPage } from './pages/MethodologyPage'
 import { PredictPage } from './pages/PredictPage'
 import { EvaluatePage } from './pages/EvaluatePage'
-import { ResultsPage } from './pages/ResultsPage'
-import { Wc2026Page } from './pages/Wc2026Page'
+import { ModelAnalysisPage } from './pages/ModelAnalysisPage'
 import { FeaturesPage } from './pages/FeaturesPage'
 import { LimitationsPage } from './pages/LimitationsPage'
 import { AboutPage } from './pages/AboutPage'
@@ -19,8 +18,8 @@ export default function App() {
           <Route path="methodology" element={<MethodologyPage />} />
           <Route path="predict" element={<PredictPage />} />
           <Route path="evaluate" element={<EvaluatePage />} />
-          <Route path="results" element={<ResultsPage />} />
-          <Route path="wc2026" element={<Wc2026Page />} />
+          <Route path="analysis" element={<ModelAnalysisPage />} />
+          <Route path="results" element={<Navigate to="/analysis" replace />} />
           <Route path="features" element={<FeaturesPage />} />
           <Route path="limitations" element={<LimitationsPage />} />
           <Route path="about" element={<AboutPage />} />

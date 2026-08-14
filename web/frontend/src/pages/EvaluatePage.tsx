@@ -3,6 +3,7 @@ import { getHoldoutMatches, getHoldoutTournaments } from '../api/client'
 import { ProbabilityBar } from '../components/ProbabilityBar'
 import { ConfusionMatrix } from '../components/ConfusionMatrix'
 import { Icon } from '../components/Icon'
+import { TeamFlag } from '../components/TeamFlag'
 import { pct } from '../lib/format'
 import type { HoldoutFilters, HoldoutMatch, HoldoutSummary } from '../types'
 
@@ -187,9 +188,13 @@ export function EvaluatePage() {
                 >
                   <td className="py-2.5 px-4 font-data-mono text-on-surface-variant">{m.date}</td>
                   <td className="py-2.5 px-4">
-                    <div className="flex flex-col">
-                      <span className="text-body-sm font-semibold text-primary">
-                        {m.team_a} vs {m.team_b}
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-body-sm font-semibold text-primary inline-flex items-center gap-1.5 flex-wrap">
+                        <TeamFlag code={m.team_a_code} name={m.team_a} size="sm" />
+                        {m.team_a}
+                        <span className="text-outline font-normal">vs</span>
+                        <TeamFlag code={m.team_b_code} name={m.team_b} size="sm" />
+                        {m.team_b}
                       </span>
                       <span className="font-label-caps text-outline">{m.tournament}</span>
                     </div>
@@ -278,9 +283,17 @@ export function EvaluatePage() {
                   {selected.tournament} · {selected.date}
                 </div>
                 <div className="flex justify-center items-center gap-4">
-                  <span className="text-headline-md text-primary">{selected.team_a_code}</span>
+                  <div className="flex flex-col items-center gap-1">
+                    <TeamFlag code={selected.team_a_code} name={selected.team_a} size="lg" />
+                    <span className="text-headline-md text-primary">{selected.team_a_code}</span>
+                    <span className="text-body-sm text-on-surface-variant">{selected.team_a}</span>
+                  </div>
                   <span className="text-body-lg text-outline">{selected.score ?? '—'}</span>
-                  <span className="text-headline-md text-pitch-green">{selected.team_b_code}</span>
+                  <div className="flex flex-col items-center gap-1">
+                    <TeamFlag code={selected.team_b_code} name={selected.team_b} size="lg" />
+                    <span className="text-headline-md text-pitch-green">{selected.team_b_code}</span>
+                    <span className="text-body-sm text-on-surface-variant">{selected.team_b}</span>
+                  </div>
                 </div>
                 <div
                   className={`mt-4 inline-flex items-center gap-1 px-3 py-1 rounded font-label-caps ${

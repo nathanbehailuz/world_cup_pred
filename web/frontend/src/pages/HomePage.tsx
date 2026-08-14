@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { getModelMeta, getWc2026Fixtures } from '../api/client'
 import { ProbabilityBar } from '../components/ProbabilityBar'
 import { Icon } from '../components/Icon'
+import { TeamLabel } from '../components/TeamFlag'
 import { pct } from '../lib/format'
 import type { ModelMeta, WcFixture } from '../types'
 
@@ -92,7 +93,7 @@ export function HomePage() {
       <section className="flex flex-col gap-6">
         <div className="flex justify-between items-end border-b border-surface-variant pb-2">
           <h2 className="text-headline-sm text-primary">Featured Forecasts</h2>
-          <Link to="/wc2026" className="font-label-caps text-pitch-green hover:underline">
+          <Link to="/predict" className="font-label-caps text-pitch-green hover:underline">
             View All Fixtures
           </Link>
         </div>
@@ -112,9 +113,19 @@ export function HomePage() {
                 </span>
               </div>
               <div className="flex justify-between items-center gap-2">
-                <span className="text-body-lg font-semibold">{f.home_team}</span>
-                <span className="text-headline-md text-slate-gray">vs</span>
-                <span className="text-body-lg font-semibold text-right">{f.away_team}</span>
+                <TeamLabel
+                  name={f.home_team}
+                  size="md"
+                  className="flex-1 min-w-0"
+                  nameClassName="text-body-lg font-semibold"
+                />
+                <span className="text-headline-md text-slate-gray shrink-0">vs</span>
+                <TeamLabel
+                  name={f.away_team}
+                  size="md"
+                  className="flex-1 min-w-0 justify-end"
+                  nameClassName="text-body-lg font-semibold text-right"
+                />
               </div>
               <ProbabilityBar
                 probabilities={{ p_a: f.p_home, p_draw: f.p_draw, p_b: f.p_away }}
@@ -173,8 +184,8 @@ export function HomePage() {
         >
           See where we were wrong
         </Link>
-        <Link to="/results" className="font-label-caps text-pitch-green hover:underline px-2">
-          Results dashboard →
+        <Link to="/analysis" className="font-label-caps text-pitch-green hover:underline px-2">
+          Model analysis →
         </Link>
       </section>
 
