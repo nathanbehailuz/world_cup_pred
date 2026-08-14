@@ -1,0 +1,517 @@
+{
+  "title": "Methodology",
+  "subtitle": "Probabilistic forecasting of three-way international football outcomes using point-in-time team strength, recent form, venue, rest, and squad-value features.",
+  "source": "docs/METHODOLOGY.md",
+  "updated": "2026-06-12",
+  "sections": [
+    {
+      "id": "abstract",
+      "label": "Abstract",
+      "title": "Abstract",
+      "icon": "description",
+      "paragraphs": [
+        "We model international football matches as a three-class probabilistic forecasting problem, with outcomes defined as Team A win, draw, and Team B win. Predictors are constructed strictly from information available before each fixture and include Elo ratings, recent form, rest days, venue, and a proxy for squad market value. The main model is an XGBoost classifier trained on matches from 1990 onward. Evaluation uses a temporal holdout of 2,245 competitive matches played from 2023 onward, with multiclass log loss as the primary metric and constant-prior and Elo-logistic models as baselines. For neutral fixtures, predictions are averaged over both home/away slot assignments to remove dependence on arbitrary ordering. The selected XGBoost specification achieves a log loss of 0.8327, compared with 0.8355 for the Elo-logistic baseline. The paired bootstrap confidence interval for this difference contains zero, so the observed improvement should be treated as small rather than conclusive."
+      ]
+    },
+    {
+      "id": "problem-formulation",
+      "label": "Problem Formulation",
+      "title": "Problem Formulation",
+      "icon": "function",
+      "paragraphs": [
+        "For a fixture between two national teams, together with its venue status (home advantage or neutral), the model returns a probability vector p = (p_A, p_D, p_B). Historical records are stored in home/away slots corresponding to classes 0, 1, and 2. That ordering has no substantive meaning for neutral World Cup fixtures, so neutral-match predictions are symmetrized before use.",
+        "The response variable records the final match outcome rather than the score after 90 minutes. Matches decided in extra time or by penalties are assigned to the eventual winner; a draw is recorded only when the fixture itself ends without a winner, as can occur in group-stage matches and friendlies. The target therefore mixes ordinary match outcomes with advancement outcomes in knockout football. This distinction matters when interpreting the draw class, which is structurally unavailable in matches that must produce a winner.",
+        "The task is evaluated probabilistically rather than as hard classification. Draws account for roughly one quarter of international matches, yet they are often not the modal prediction even when their probability is substantial. A single model is estimated across all national teams. Pair-specific models were not used because head-to-head samples are generally too small, and team identity itself is not included as a predictor."
+      ],
+      "callouts": [
+        {
+          "kind": "label",
+          "title": "Outcome definition",
+          "body": "Draws are possible in fixtures that may finish level. Knockout matches that require a winner are labeled by the eventual winner after extra time or penalties, so the draw class is unavailable for those fixtures."
+        },
+        {
+          "kind": "notation",
+          "title": "Notation and objective",
+          "body": "Let x_i ∈ ℝ^d be features for match i.\nLet y_i be the one-hot outcome; f(x_i; θ) outputs p_i with Σ p = 1.\n\nMinimize L(θ) = −(1/N) Σ [ y^H log p^H + y^D log p^D + y^A log p^A ]"
+        }
+      ]
+    },
+    {
+      "id": "data",
+      "label": "Data",
+      "title": "Data",
+      "icon": "dataset",
+      "paragraphs": [
+        "Match results are taken from martj42/international_results. The results.csv file contains scores, including extra-time scores but excluding penalty shootout outcomes, and is joined to shootouts.csv to recover shootout winners. After cleaning, the dataset contains 49,405 matches played between 1872-11-30 and 2026-06-11, involving 336 national teams; 677 matches have an associated shootout winner.",
+        "Cleaning is implemented in download_data.py. Unplayed fixtures with missing scores are removed, team names are standardized with an alias map, duplicate records are identified by (date, home, away), and shootout winners are joined on the same key.",
+        "Model estimation is restricted to matches on or after 1990-01-01, although the full historical series is retained when constructing Elo ratings. Squad-value data come from transfermarkt-datasets (players and valuations). These records are converted to quarterly point-in-time snapshots beginning in 2004."
+      ],
+      "footnotes": [
+        {
+          "id": "martj42",
+          "text": "martj42/international_results",
+          "href": "https://github.com/martj42/international_results"
+        },
+        {
+          "id": "transfermarkt",
+          "text": "transfermarkt-datasets",
+          "href": "https://github.com/transfermarkt-datasets"
+        }
+      ]
+    },
+    {
+      "id": "feature-engineering",
+      "label": "Feature Engineering",
+      "title": "Feature Construction",
+      "icon": "manufacturing",
+      "paragraphs": [
+        "Every predictor is constructed point in time: only information dated strictly before the fixture is available to the feature pipeline.",
+        "Elo ratings begin at 1500. A 100-point home adjustment is applied for non-neutral fixtures, and rating updates use match-type-specific K factors of 60, 50, 40, 30, or 20 following the convention used by eloratings.net. For Elo updates, a penalty shootout is treated as a draw because the rating update is based on the on-field result; the supervised outcome label, by contrast, records the shootout winner.",
+        "Recent form is summarized over each team's previous five and ten matches. The feature set retains points, goal difference, goals scored, and goals conceded separately rather than collapsing attacking and defensive form into one measure. Rest days and an indicator for neutral venue are added as contextual variables.",
+        "Squad strength is approximated by the sum of the market values of the 25 most valuable players associated with a given citizenship, using each player's latest valuation from the preceding 18 months; the resulting quantity is stored after a log1p transformation. These features are unavailable before 2004 and remain NaN for earlier fixtures, which XGBoost can handle directly. The proxy is imperfect: citizenship does not map exactly to FIFA eligibility, dual nationals and fringe call-ups are not represented cleanly, and market values are more complete for players in European leagues.",
+        "The final specification contains 17 predictors. Squad-value variables are retained, while the competitive-match indicator is excluded on the basis of the ablation results reported below."
+      ],
+      "tables": [
+        {
+          "caption": "Table 1: Primary feature families",
+          "columns": [
+            {
+              "key": "feature",
+              "label": "Feature",
+              "align": "left"
+            },
+            {
+              "key": "category",
+              "label": "Category",
+              "align": "left"
+            },
+            {
+              "key": "description",
+              "label": "Description",
+              "align": "left"
+            }
+          ],
+          "rows": [
+            {
+              "feature": "elo_diff / home_elo / away_elo",
+              "category": "Strength",
+              "description": "Elo difference and absolute ratings with tiered K factors; +100 points for the nominal home side on non-neutral fixtures."
+            },
+            {
+              "feature": "form_*_diff (8)",
+              "category": "Momentum",
+              "description": "Differences in points, GD, GF, and GA over each team's previous 5 and 10 matches."
+            },
+            {
+              "feature": "squad_value_log_*",
+              "category": "Economic",
+              "description": "log1p of the top-25 citizenship-based squad market-value proxy (EUR), represented for both teams and as a difference."
+            },
+            {
+              "feature": "days_since_last",
+              "category": "Context",
+              "description": "Days since each team's previous match."
+            },
+            {
+              "feature": "neutral",
+              "category": "Context",
+              "description": "Indicator for neutral venue; World Cup host status is inferred for the USA, Mexico, and Canada."
+            }
+          ]
+        }
+      ],
+      "links": [
+        {
+          "label": "Full feature glossary",
+          "to": "/features"
+        }
+      ]
+    },
+    {
+      "id": "model",
+      "label": "Models",
+      "title": "Models",
+      "icon": "model_training",
+      "paragraphs": [
+        "Two baselines are used. The constant-prior model assigns every fixture the empirical class distribution observed in the training data. The Elo-logistic baseline fits multinomial logistic regression using standardized elo_diff as its only predictor. The latter provides the more informative comparison because it asks whether the additional features and nonlinear model improve on a conventional team-strength measure.",
+        "The main model is XGBClassifier with the multi:softprob objective. The specification uses max_depth=4, learning_rate=0.1, n_estimators=300, subsample=0.8, colsample_bytree=0.8, and random_state=42. These values were not selected by a separate hyperparameter search; systematic tuning is left for later work.",
+        "Neutral fixtures require an additional symmetry correction because the home/away slot assignment is arbitrary. Each neutral match is therefore scored twice, once in each slot ordering. Before averaging the two predictions, home- and away-win probabilities are exchanged, all *_diff variables change sign, and slot-specific predictors are swapped. The same procedure is used during evaluation and deployment."
+      ],
+      "cards": [
+        {
+          "title": "Algorithm",
+          "body": "XGBoost · multi:softprob",
+          "mono": true
+        },
+        {
+          "title": "Symmetrization",
+          "body": "For neutral fixtures, predictions from both slot orderings are aligned and averaged."
+        }
+      ]
+    },
+    {
+      "id": "evaluation",
+      "label": "Evaluation",
+      "title": "Evaluation Protocol",
+      "icon": "analytics",
+      "paragraphs": [
+        "The evaluation is chronological. Matches from 1990-01-01 through 2022-12-31 form the training period; matches from 2023-01-01 onward form the holdout period. The reported comparison is restricted to 2,245 competitive fixtures in the latter period, matching the intended 2026 World Cup use case. Every model configuration is evaluated on this same set.",
+        "Multiclass log loss is the primary metric because the model is intended to produce probabilities rather than only a predicted class. Brier score and accuracy are reported as secondary measures. Accuracy is less informative on its own in this setting, particularly because draws make up roughly 25% of matches and need not be the highest-probability class to be reasonably calibrated. Uncertainty in log loss, and in paired differences between models, is estimated with 1,000 bootstrap resamples and reported as 95% confidence intervals.",
+        "The 2023+ holdout is not a completely untouched test set. It was used to choose among a small, predefined set of four model configurations, so the reported performance is likely to be mildly optimistic. A stricter design would use rolling-origin validation for model selection and reserve the 2023+ period for a single final comparison."
+      ],
+      "tables": [
+        {
+          "caption": "Table 2: Holdout comparison (competitive 2023+, symmetrized)",
+          "highlightRow": 2,
+          "columns": [
+            {
+              "key": "model",
+              "label": "Model",
+              "align": "left"
+            },
+            {
+              "key": "log_loss",
+              "label": "Log loss ↓",
+              "align": "right"
+            },
+            {
+              "key": "brier",
+              "label": "Brier ↓",
+              "align": "right"
+            },
+            {
+              "key": "accuracy",
+              "label": "Accuracy",
+              "align": "right"
+            }
+          ],
+          "rows": [
+            {
+              "model": "Constant-prior baseline",
+              "log_loss": "1.0469",
+              "brier": "0.6325",
+              "accuracy": "47.3%"
+            },
+            {
+              "model": "Elo logistic baseline",
+              "log_loss": "0.8355",
+              "brier": "0.4888",
+              "accuracy": "62.8%"
+            },
+            {
+              "model": "Production XGBoost (17 feat)",
+              "log_loss": "0.8327",
+              "brier": "0.4872",
+              "accuracy": "63.3%"
+            }
+          ]
+        }
+      ],
+      "links": [
+        {
+          "label": "Results dashboard",
+          "to": "/results"
+        }
+      ]
+    },
+    {
+      "id": "experiments",
+      "label": "Experiments",
+      "title": "Ablation Studies",
+      "icon": "science",
+      "paragraphs": [
+        "Four predefined configurations were compared on the same 2,245-match holdout. The selected specification uses all available training matches and 17 predictors, including the squad-value variables but excluding the competitive-match indicator. After selection, this specification is refit on all 32,288 matches from 1990 through 2026-06-11. No evaluation metric reported here is computed from that refit; all reported results refer to the earlier temporal holdout experiment."
+      ],
+      "tables": [
+        {
+          "caption": "Table 3: Experiment grid (shared 2,245-match competitive test set)",
+          "highlightRow": 2,
+          "columns": [
+            {
+              "key": "config",
+              "label": "Configuration",
+              "align": "left"
+            },
+            {
+              "key": "features",
+              "label": "Features",
+              "align": "right"
+            },
+            {
+              "key": "log_loss",
+              "label": "Log loss ↓",
+              "align": "right"
+            },
+            {
+              "key": "brier",
+              "label": "Brier ↓",
+              "align": "right"
+            },
+            {
+              "key": "accuracy",
+              "label": "Accuracy",
+              "align": "right"
+            }
+          ],
+          "rows": [
+            {
+              "config": "All matches, full (incl. competitive flag)",
+              "features": "18",
+              "log_loss": "0.8343",
+              "brier": "0.4880",
+              "accuracy": "63.2%"
+            },
+            {
+              "config": "Competitive-only, full",
+              "features": "18",
+              "log_loss": "0.8444",
+              "brier": "0.4911",
+              "accuracy": "63.6%"
+            },
+            {
+              "config": "All matches, no competitive flag (production)",
+              "features": "17",
+              "log_loss": "0.8327",
+              "brier": "0.4872",
+              "accuracy": "63.3%"
+            },
+            {
+              "config": "All matches, no squad",
+              "features": "15",
+              "log_loss": "0.8387",
+              "brier": "0.4911",
+              "accuracy": "63.3%"
+            }
+          ]
+        },
+        {
+          "caption": "Table 4: Bootstrap 95% CIs (log loss, 1,000 resamples)",
+          "columns": [
+            {
+              "key": "model",
+              "label": "Model",
+              "align": "left"
+            },
+            {
+              "key": "point",
+              "label": "Point",
+              "align": "right"
+            },
+            {
+              "key": "ci",
+              "label": "95% CI",
+              "align": "right"
+            }
+          ],
+          "rows": [
+            {
+              "model": "Constant prior",
+              "point": "1.0469",
+              "ci": "[1.0333, 1.0611]"
+            },
+            {
+              "model": "Elo logistic",
+              "point": "0.8355",
+              "ci": "[0.8106, 0.8616]"
+            },
+            {
+              "model": "Production XGBoost",
+              "point": "0.8327",
+              "ci": "[0.8052, 0.8600]"
+            },
+            {
+              "model": "XGBoost − Elo difference",
+              "point": "−0.0028",
+              "ci": "[−0.0119, 0.0072]"
+            }
+          ]
+        }
+      ],
+      "findings": [
+        "Restricting training to competitive matches worsens log loss: 0.8444, compared with 0.8343 or lower for the corresponding all-match specifications.",
+        "Removing the squad-value variables raises log loss from 0.8327 to 0.8387, a difference of 0.0060.",
+        "Including the competitive-match indicator changes log loss only slightly (0.8343 versus 0.8327), so it is omitted from the final specification.",
+        "XGBoost has a lower log loss than the Elo-logistic baseline by 0.0028, but the 95% bootstrap confidence interval for the paired difference, [−0.0119, 0.0072], includes zero."
+      ]
+    },
+    {
+      "id": "calibration",
+      "label": "Calibration & Errors",
+      "title": "Calibration and Error Analysis",
+      "icon": "troubleshoot",
+      "paragraphs": [
+        "Home- and away-win probabilities are reasonably calibrated over most of their range, although home-win predictions show mild overconfidence between approximately 0.5 and 0.9. Predicted draw probabilities do not exceed about 0.40. In the 0.2–0.3 draw-probability bin, the mean prediction and empirical draw frequency are both 0.248; the larger departures occur near the tails of the distribution. The remaining draw error is one reason to consider a goals-based model, such as a Poisson specification, in later work.",
+        "Most of the aggregate error comes from closely matched teams. Fixtures with an Elo gap below 150 have substantially higher log loss than matches with a larger rating difference. Draws illustrate the distinction between calibration and classification particularly clearly: their predicted probabilities can be sensible even though a draw is almost never the argmax. On rows whose observed outcome is a draw, classification accuracy is 2.0%."
+      ],
+      "tables": [
+        {
+          "caption": "Table 5: Error slices (production config, 2023+ test)",
+          "columns": [
+            {
+              "key": "slice",
+              "label": "Slice",
+              "align": "left"
+            },
+            {
+              "key": "n",
+              "label": "N",
+              "align": "right"
+            },
+            {
+              "key": "log_loss",
+              "label": "Log loss",
+              "align": "right"
+            },
+            {
+              "key": "accuracy",
+              "label": "Accuracy",
+              "align": "right"
+            },
+            {
+              "key": "mean_p_draw",
+              "label": "Mean p(draw)",
+              "align": "right"
+            },
+            {
+              "key": "note",
+              "label": "Observation",
+              "align": "left"
+            }
+          ],
+          "rows": [
+            {
+              "slice": "Elo gap < 50",
+              "n": "332",
+              "log_loss": "1.077",
+              "accuracy": "46.4%",
+              "mean_p_draw": "0.267",
+              "note": "Highest-error slice; draws are relatively common"
+            },
+            {
+              "slice": "Elo gap 50–150",
+              "n": "675",
+              "log_loss": "1.016",
+              "accuracy": "51.7%",
+              "mean_p_draw": "0.244",
+              "note": "Substantial residual uncertainty"
+            },
+            {
+              "slice": "Elo gap 150–300",
+              "n": "767",
+              "log_loss": "0.847",
+              "accuracy": "65.2%",
+              "mean_p_draw": "0.203",
+              "note": "Separation between favourites and underdogs is clearer"
+            },
+            {
+              "slice": "Elo gap > 300",
+              "n": "471",
+              "log_loss": "0.375",
+              "accuracy": "88.8%",
+              "mean_p_draw": "0.101",
+              "note": "Large Elo gaps are usually classified correctly"
+            },
+            {
+              "slice": "Neutral venues",
+              "n": "647",
+              "log_loss": "0.873",
+              "accuracy": "62.0%",
+              "mean_p_draw": "0.201",
+              "note": "Neutral-match symmetrization applied"
+            },
+            {
+              "slice": "True draw",
+              "n": "458",
+              "log_loss": "1.515",
+              "accuracy": "2.0%",
+              "mean_p_draw": "0.233",
+              "note": "Draw is rarely the highest-probability class"
+            }
+          ]
+        },
+        {
+          "caption": "Table 6: Permutation importance (Δ log loss, 10 repeats)",
+          "columns": [
+            {
+              "key": "feature",
+              "label": "Feature",
+              "align": "left"
+            },
+            {
+              "key": "delta",
+              "label": "Δ log loss",
+              "align": "right"
+            },
+            {
+              "key": "notes",
+              "label": "Notes",
+              "align": "left"
+            }
+          ],
+          "rows": [
+            {
+              "feature": "elo_diff",
+              "delta": "+0.202",
+              "notes": "Largest permutation effect"
+            },
+            {
+              "feature": "squad_value_log_diff",
+              "delta": "+0.021",
+              "notes": "Second-largest difference feature; removal also worsens holdout log loss"
+            },
+            {
+              "feature": "home_elo",
+              "delta": "+0.012",
+              "notes": "Additional slot-specific strength information"
+            },
+            {
+              "feature": "Form features",
+              "delta": "+0.002–0.005",
+              "notes": "Small but measurable effect"
+            },
+            {
+              "feature": "Rest days",
+              "delta": "+0.000–0.001",
+              "notes": "Little effect in this evaluation"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "limitations",
+      "label": "Limitations",
+      "title": "Limitations and Further Work",
+      "icon": "warning",
+      "paragraphs": [
+        "Several aspects of the design constrain interpretation. First, the response variable combines fixtures that may end in a draw with knockout matches that must produce a winner; extra time and penalty shootouts are therefore part of the outcome definition. Second, the squad-value measure is only a proxy for actual selection strength. It is affected by dual nationality, the difference between citizenship and FIFA eligibility, and uneven market-value coverage across leagues. Third, the XGBoost improvement over the Elo-logistic baseline is small, and the paired bootstrap interval does not establish a clear difference. The model has also not undergone systematic hyperparameter tuning, and the tiered Elo K factors are adopted from convention rather than estimated here. Venue is represented only as home or neutral, so quasi-home effects are omitted. FIFA rankings are not included because they are treated as largely redundant with Elo in the post-2018 period."
+      ],
+      "findings": [
+        "Separate 90-minute scoreline modeling from advancement modeling for knockout fixtures.",
+        "Evaluate a Poisson goals model as an alternative treatment of draw probabilities.",
+        "Update ratings and features during the tournament after each matchday.",
+        "Add SHAP-based prediction attribution and use rolling-origin cross-validation for model selection."
+      ],
+      "links": [
+        {
+          "label": "Full limitations page",
+          "to": "/limitations"
+        }
+      ]
+    },
+    {
+      "id": "reproducibility",
+      "label": "Reproducibility",
+      "title": "Reproducibility",
+      "icon": "terminal",
+      "paragraphs": [
+        "The pipeline is organized under pipeline/ as four stages: download, feature construction, training, and prediction. Randomized components use random_state=42. Evaluation outputs—including metrics, bootstrap confidence intervals, calibration results, permutation importance, error slices, and example predictions—are written to models/model_meta.json. Development decisions and changes to the pipeline are recorded separately in docs/DEVLOG.md."
+      ],
+      "commands": [
+        "python -m pipeline.main MEX RSA",
+        "python -m pipeline.download_schedule",
+        ".venv/bin/python -m pipeline.train --retrain"
+      ]
+    }
+  ]
+}

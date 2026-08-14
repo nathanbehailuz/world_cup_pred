@@ -1,6 +1,6 @@
 docs/ideas.md
-data/
-models/
+/data/
+/models/
 __pycache__/
 *.pyc
 .env

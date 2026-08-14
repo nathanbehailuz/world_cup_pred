@@ -1,9 +1,74 @@
 import { useEffect, useState } from 'react'
-import { getHoldoutMatches } from '../api/client'
+import { getHoldoutMatches, getHoldoutTournaments } from '../api/client'
 import { ProbabilityBar } from '../components/ProbabilityBar'
 import { Icon } from '../components/Icon'
 import { pct } from '../lib/format'
 import type { HoldoutFilters, HoldoutMatch, HoldoutSummary } from '../types'
+
+const PAGE_SIZE = 50
+const CONFUSION_LABELS = ['A', 'D', 'B'] as const
+
+function ConfusionMatrix({ matrix }: { matrix: number[][] }) {
+  const maxCell = Math.max(1, ...matrix.flat())
+  return (
+    <div className="overflow-x-auto">
+      <table className="border-collapse text-left">
+        <thead>
+          <tr>
+            <th className="p-0.5" />
+            <th
+              colSpan={3}
+              className="font-label-caps text-[10px] text-on-surface-variant text-center pb-1 font-normal"
+            >
+              Actual
+            </th>
+          </tr>
+          <tr>
+            <th className="font-label-caps text-[10px] text-on-surface-variant pr-2 font-normal align-bottom">
+              Pred
+            </th>
+            {CONFUSION_LABELS.map((lab) => (
+              <th
+                key={lab}
+                className="font-data-mono text-[10px] text-on-surface-variant text-center px-0.5 pb-1 font-normal w-8"
+              >
+                {lab}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {matrix.map((row, ri) => (
+            <tr key={CONFUSION_LABELS[ri]}>
+              <th
+                scope="row"
+                className="font-data-mono text-[10px] text-on-surface-variant pr-2 font-normal text-right"
+              >
+                {CONFUSION_LABELS[ri]}
+              </th>
+              {row.map((n, ci) => (
+                <td key={`${CONFUSION_LABELS[ri]}-${CONFUSION_LABELS[ci]}`} className="p-0.5">
+                  <div
+                    className="rounded-[2px] w-8 h-8 flex items-center justify-center text-[10px] font-data-mono"
+                    style={{
+                      background:
+                        n === 0
+                          ? 'var(--color-surface-variant)'
+                          : `color-mix(in srgb, var(--color-pitch-green) ${Math.min(100, (n / maxCell) * 100)}%, var(--color-surface-variant))`,
+                    }}
+                    title={`Pred ${CONFUSION_LABELS[ri]} · Actual ${CONFUSION_LABELS[ci]}: ${n}`}
+                  >
+                    {n}
+                  </div>
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
 
 export function EvaluatePage() {
   const [filters, setFilters] = useState<HoldoutFilters>({
@@ -14,7 +79,10 @@ export function EvaluatePage() {
   })
   const [matches, setMatches] = useState<HoldoutMatch[]>([])
   const [summary, setSummary] = useState<HoldoutSummary | null>(null)
+  const [totalHoldout, setTotalHoldout] = useState(0)
   const [selected, setSelected] = useState<HoldoutMatch | null>(null)
+  const [page, setPage] = useState(1)
+  const tournaments = getHoldoutTournaments()
 
   useEffect(() => {
     let cancelled = false
@@ -22,11 +90,20 @@ export function EvaluatePage() {
       if (cancelled) return
       setMatches(r.matches)
       setSummary(r.summary)
+      setTotalHoldout(r.total)
+      setPage(1)
     })
     return () => {
       cancelled = true
     }
   }, [filters])
+
+  const pageCount = Math.max(1, Math.ceil(matches.length / PAGE_SIZE))
+  const safePage = Math.min(page, pageCount)
+  const pageStart = (safePage - 1) * PAGE_SIZE
+  const pageMatches = matches.slice(pageStart, pageStart + PAGE_SIZE)
+  const showingFrom = matches.length === 0 ? 0 : pageStart + 1
+  const showingTo = Math.min(pageStart + PAGE_SIZE, matches.length)
 
   return (
     <main className="flex-grow w-full max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop py-8 flex flex-col gap-8 relative overflow-x-hidden">
@@ -71,7 +148,10 @@ export function EvaluatePage() {
             </div>
             <div className="mt-2 flex items-center gap-1 text-data-pos font-label-caps">
               <Icon name="trending_up" className="text-[14px]" />
-              <span>+{(summary.vs_baseline_accuracy_delta * 100).toFixed(1)}% vs baseline (ref)</span>
+              <span>
+                {summary.vs_baseline_accuracy_delta >= 0 ? '+' : ''}
+                {(summary.vs_baseline_accuracy_delta * 100).toFixed(1)}% vs baseline (ref)
+              </span>
             </div>
           </div>
           <div className="bg-surface-container-lowest border border-outline-variant rounded p-5 hover:border-pitch-green transition-colors">
@@ -86,23 +166,7 @@ export function EvaluatePage() {
               <h3 className="font-label-caps text-on-surface-variant">Confusion (pred × actual)</h3>
               <Icon name="grid_on" className="text-outline" />
             </div>
-            <div className="grid grid-cols-3 gap-1 w-full max-w-[120px] aspect-square">
-              {summary.confusion.flat().map((n, i) => (
-                <div
-                  key={i}
-                  className="rounded-[2px] flex items-center justify-center text-[10px] font-data-mono"
-                  style={{
-                    background:
-                      n === 0
-                        ? 'var(--color-surface-variant)'
-                        : `color-mix(in srgb, var(--color-pitch-green) ${Math.min(100, n * 35)}%, var(--color-surface-variant))`,
-                  }}
-                  title={String(n)}
-                >
-                  {n}
-                </div>
-              ))}
-            </div>
+            <ConfusionMatrix matrix={summary.confusion} />
           </div>
         </section>
       )}
@@ -113,13 +177,15 @@ export function EvaluatePage() {
           <span className="font-label-caps font-bold">Filters</span>
         </div>
         <select
-          className="bg-surface border border-outline-variant text-body-sm px-3 py-1.5 rounded focus:outline-none focus:border-pitch-green"
+          className="bg-surface border border-outline-variant text-body-sm px-3 py-1.5 rounded focus:outline-none focus:border-pitch-green max-w-[220px]"
           value={filters.tournament}
           onChange={(e) => setFilters((f) => ({ ...f, tournament: e.target.value }))}
         >
-          <option>All Tournaments</option>
-          <option>Competitive Only</option>
-          <option>Friendlies</option>
+          {tournaments.map((t) => (
+            <option key={t} value={t}>
+              {t}
+            </option>
+          ))}
         </select>
         <select
           className="bg-surface border border-outline-variant text-body-sm px-3 py-1.5 rounded focus:outline-none focus:border-pitch-green"
@@ -175,7 +241,7 @@ export function EvaluatePage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-outline-variant">
-              {matches.map((m) => (
+              {pageMatches.map((m) => (
                 <tr
                   key={m.id}
                   className="hover:bg-surface-container transition-colors cursor-pointer"
@@ -219,8 +285,32 @@ export function EvaluatePage() {
             </tbody>
           </table>
         </div>
-        <div className="p-3 border-t border-outline-variant bg-surface text-body-sm text-on-surface-variant">
-          Showing {matches.length} placeholder holdout rows (swap for full precomputed artifact via API).
+        <div className="p-3 border-t border-outline-variant bg-surface text-body-sm text-on-surface-variant flex flex-wrap items-center justify-between gap-3">
+          <span>
+            Showing {showingFrom}–{showingTo} of {matches.length} filtered
+            {totalHoldout > 0 ? ` (${totalHoldout} holdout matches)` : ''}
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              className="px-3 py-1 border border-outline-variant rounded disabled:opacity-40 hover:bg-surface-container"
+              disabled={safePage <= 1}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+            >
+              Previous
+            </button>
+            <span className="font-data-mono">
+              {safePage} / {pageCount}
+            </span>
+            <button
+              type="button"
+              className="px-3 py-1 border border-outline-variant rounded disabled:opacity-40 hover:bg-surface-container"
+              disabled={safePage >= pageCount}
+              onClick={() => setPage((p) => Math.min(pageCount, p + 1))}
+            >
+              Next
+            </button>
+          </div>
         </div>
       </section>
 

@@ -1,7 +1,7 @@
 import teamsJson from '../data/teams.json'
 import modelMetaJson from '../data/model_meta.json'
 import wcFixturesJson from '../data/wc2026_fixtures.json'
-import { HOLDOUT_MATCHES } from '../data/holdout'
+import { HOLDOUT_ARTIFACT, HOLDOUT_MATCHES } from '../data/holdout'
 import type {
   HoldoutFilters,
   HoldoutMatch,
@@ -149,9 +149,14 @@ function maxProb(m: HoldoutMatch): number {
   return Math.max(m.probabilities.p_a, m.probabilities.p_draw, m.probabilities.p_b)
 }
 
+export function getHoldoutTournaments(): string[] {
+  return ['All Tournaments', ...HOLDOUT_ARTIFACT.meta.tournaments]
+}
+
 export async function getHoldoutMatches(filters: HoldoutFilters = {}): Promise<{
   matches: HoldoutMatch[]
   summary: HoldoutSummary
+  total: number
 }> {
   await delay(160)
   if (API_BASE) {
@@ -162,9 +167,7 @@ export async function getHoldoutMatches(filters: HoldoutFilters = {}): Promise<{
 
   let matches = [...HOLDOUT_MATCHES]
   if (filters.tournament && filters.tournament !== 'All Tournaments') {
-    if (filters.tournament === 'Competitive Only') matches = matches.filter((m) => m.competitive)
-    else if (filters.tournament === 'Friendlies') matches = matches.filter((m) => !m.competitive)
-    else matches = matches.filter((m) => m.tournament.includes(filters.tournament!.replace(' Cups', '')))
+    matches = matches.filter((m) => m.tournament === filters.tournament)
   }
   if (filters.confidence === 'high') matches = matches.filter((m) => maxProb(m) > 0.7)
   if (filters.confidence === 'medium') matches = matches.filter((m) => maxProb(m) >= 0.5 && maxProb(m) <= 0.7)
@@ -188,14 +191,16 @@ export async function getHoldoutMatches(filters: HoldoutFilters = {}): Promise<{
   const confusion = labels.map((pred) =>
     labels.map((act) => matches.filter((m) => m.predicted === pred && m.actual === act).length),
   )
+  const baseline = HOLDOUT_ARTIFACT.meta.baseline_accuracy
 
   return {
     matches,
+    total: HOLDOUT_ARTIFACT.meta.n_matches,
     summary: {
       n: matches.length,
       accuracy,
       mean_log_loss,
-      vs_baseline_accuracy_delta: 0.021,
+      vs_baseline_accuracy_delta: accuracy - baseline,
       confusion,
     },
   }

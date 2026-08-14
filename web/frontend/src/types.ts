@@ -77,6 +77,21 @@ export interface HoldoutSummary {
   confusion: number[][]
 }
 
+export interface HoldoutArtifactMeta {
+  train_cutoff: string
+  n_matches: number
+  feature_columns: string[]
+  selected_config: string
+  metrics: { log_loss: number; brier_score: number; accuracy: number }
+  baseline_accuracy: number
+  tournaments: string[]
+}
+
+export interface HoldoutArtifact {
+  meta: HoldoutArtifactMeta
+  matches: HoldoutMatch[]
+}
+
 export interface WcFixture {
   date: string
   home_team: string
@@ -136,4 +151,63 @@ export interface FeatureGlossaryItem {
   description: string
   point_in_time: string
   missingness: string
+}
+
+export interface MethodologyCallout {
+  kind: 'label' | 'notation' | 'note'
+  title: string
+  body: string
+}
+
+export interface MethodologyTableColumn {
+  key: string
+  label: string
+  align?: 'left' | 'right'
+}
+
+export interface MethodologyTable {
+  caption: string
+  columns: MethodologyTableColumn[]
+  rows: Record<string, string>[]
+  highlightRow?: number
+}
+
+export interface MethodologyCard {
+  title: string
+  body: string
+  mono?: boolean
+}
+
+export interface MethodologyLink {
+  label: string
+  to: string
+}
+
+export interface MethodologyFootnote {
+  id: string
+  text: string
+  href?: string
+}
+
+export interface MethodologySection {
+  id: string
+  label: string
+  title: string
+  icon: string
+  paragraphs?: string[]
+  callouts?: MethodologyCallout[]
+  cards?: MethodologyCard[]
+  tables?: MethodologyTable[]
+  findings?: string[]
+  links?: MethodologyLink[]
+  commands?: string[]
+  footnotes?: MethodologyFootnote[]
+}
+
+export interface MethodologyDoc {
+  title: string
+  subtitle: string
+  source: string
+  updated: string
+  sections: MethodologySection[]
 }
