@@ -4,6 +4,19 @@ Running documentation for the World Cup 2026 match predictor. Newest entries fir
 
 ---
 
+## 2026-08-15 — Repo layout for website
+
+**Why.** Split ML code from upcoming web work (`WEBSITE.md`) so the site can grow without a flat script dump at the repo root.
+
+**What changed**
+- Python modules live only in `pipeline/` (package): download, features, train, predict, backtest, `fifa_codes`.
+- Shared artifact paths in `pipeline/paths.py` → repo-root `data/`, `models/`, `results/` (unchanged locations).
+- Docs moved to `docs/` (`METHODOLOGY.md`, `DEVLOG.md`, `WEBSITE.md`, `TODO.md`, `ideas.md`).
+- Empty `web/api` + `web/frontend` scaffold (stack TBD); see `web/README.md`.
+- Entry points: `python -m pipeline.main …`, `python -m pipeline.train`, etc. (no root `.py` wrappers).
+
+---
+
 ## 2026-06-12 — Methodology report hardening
 
 **Evaluation additions** (`train.py`):

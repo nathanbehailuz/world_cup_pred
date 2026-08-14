@@ -221,9 +221,9 @@ Tracked in [TODO.md](TODO.md):
 ## 8. Reproducibility
 
 ```bash
-python main.py MEX RSA         # schedule-aware full pipeline (preferred)
-python download_schedule.py    # reload fixtures after each matchday
-.venv/bin/python train.py --retrain
+python -m pipeline.main MEX RSA         # schedule-aware full pipeline (preferred)
+python -m pipeline.download_schedule    # reload fixtures after each matchday
+.venv/bin/python -m pipeline.train --retrain
 ```
 
-All randomness is seeded (`random_state=42`). Metrics, bootstrap CIs, calibration, feature importance, error slices, and sample predictions are persisted in `models/model_meta.json`. A running narrative log is kept in `DEVLOG.md`.
+All randomness is seeded (`random_state=42`). Metrics, bootstrap CIs, calibration, feature importance, error slices, and sample predictions are persisted in `models/model_meta.json`. A running narrative log is kept in [DEVLOG.md](DEVLOG.md).

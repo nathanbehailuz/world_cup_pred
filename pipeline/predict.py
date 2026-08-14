@@ -5,17 +5,13 @@ from __future__ import annotations
 import argparse
 import json
 import sqlite3
-from pathlib import Path
 
 import numpy as np
 import xgboost as xgb
 
-from download_data import normalize_team_name
-from fifa_codes import FIFA_CODE_TO_TEAM
-
-DB_PATH = Path(__file__).parent / "data" / "worldcup.db"
-MODEL_PATH = Path(__file__).parent / "models" / "xgb_model.json"
-META_PATH = Path(__file__).parent / "models" / "model_meta.json"
+from .download_data import normalize_team_name
+from .fifa_codes import FIFA_CODE_TO_TEAM
+from .paths import DB_PATH, META_PATH, MODEL_PATH
 
 OUTCOME_LABELS = ("home_win", "draw", "away_win")
 
@@ -74,8 +70,75 @@ def load_team_rating(conn: sqlite3.Connection, team: str) -> dict:
     return result
 
 
+def load_prematch_markets(
+    conn: sqlite3.Connection,
+    home_team: str,
+    away_team: str,
+    match_date: str | None = None,
+) -> dict[str, float]:
+    """Load bookmaker implied probs for a fixture, or NaN if unavailable."""
+    nan = float("nan")
+    empty = {
+        "market_implied_home": nan,
+        "market_implied_draw": nan,
+        "market_implied_away": nan,
+        "market_implied_diff": nan,
+    }
+    table = conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='prematch_odds'"
+    ).fetchone()
+    if table is None:
+        return empty
+
+    if match_date:
+        row = conn.execute(
+            """
+            SELECT implied_home, implied_draw, implied_away, implied_diff
+            FROM prematch_odds
+            WHERE date = ? AND home_team = ? AND away_team = ?
+            """,
+            (match_date, home_team, away_team),
+        ).fetchone()
+    else:
+        row = conn.execute(
+            """
+            SELECT implied_home, implied_draw, implied_away, implied_diff
+            FROM prematch_odds
+            WHERE home_team = ? AND away_team = ?
+            ORDER BY date DESC
+            LIMIT 1
+            """,
+            (home_team, away_team),
+        ).fetchone()
+    if row is None:
+        return empty
+    return {
+        "market_implied_home": float(row[0]) if row[0] is not None else nan,
+        "market_implied_draw": float(row[1]) if row[1] is not None else nan,
+        "market_implied_away": float(row[2]) if row[2] is not None else nan,
+        "market_implied_diff": float(row[3]) if row[3] is not None else nan,
+    }
+
+
+def mirror_market(market: dict[str, float]) -> dict[str, float]:
+    """Swap home/away market slots for neutral-venue symmetrization."""
+    home = market.get("market_implied_home", float("nan"))
+    away = market.get("market_implied_away", float("nan"))
+    diff = market.get("market_implied_diff", float("nan"))
+    return {
+        "market_implied_home": away,
+        "market_implied_draw": market.get("market_implied_draw", float("nan")),
+        "market_implied_away": home,
+        "market_implied_diff": -diff if not np.isnan(diff) else float("nan"),
+    }
+
+
 def build_feature_vector(
-    home: dict, away: dict, neutral: bool, competitive: bool = True
+    home: dict,
+    away: dict,
+    neutral: bool,
+    competitive: bool = True,
+    market: dict[str, float] | None = None,
 ) -> np.ndarray:
     meta = json.loads(META_PATH.read_text())
     columns = meta["feature_columns"]
@@ -87,6 +150,7 @@ def build_feature_vector(
         if not (np.isnan(home_squad_log) or np.isnan(away_squad_log))
         else float("nan")
     )
+    market = market or {}
 
     values = {
         "elo_diff": home["elo"] - away["elo"],
@@ -107,11 +171,20 @@ def build_feature_vector(
         "home_squad_value_log": home_squad_log,
         "away_squad_value_log": away_squad_log,
         "squad_value_log_diff": squad_diff,
+        "market_implied_home": market.get("market_implied_home", float("nan")),
+        "market_implied_draw": market.get("market_implied_draw", float("nan")),
+        "market_implied_away": market.get("market_implied_away", float("nan")),
+        "market_implied_diff": market.get("market_implied_diff", float("nan")),
     }
     return np.array([[values[col] for col in columns]], dtype=np.float32)
 
 
-def predict(home_team: str, away_team: str, neutral: bool) -> dict[str, float]:
+def predict(
+    home_team: str,
+    away_team: str,
+    neutral: bool,
+    match_date: str | None = None,
+) -> dict[str, float]:
     home_team = resolve_team(home_team)
     away_team = resolve_team(away_team)
 
@@ -123,9 +196,10 @@ def predict(home_team: str, away_team: str, neutral: bool) -> dict[str, float]:
     conn = sqlite3.connect(DB_PATH)
     home = load_team_rating(conn, home_team)
     away = load_team_rating(conn, away_team)
+    market = load_prematch_markets(conn, home_team, away_team, match_date)
     conn.close()
 
-    features = build_feature_vector(home, away, neutral=neutral)
+    features = build_feature_vector(home, away, neutral=neutral, market=market)
 
     model = xgb.XGBClassifier()
     model.load_model(MODEL_PATH)
@@ -135,7 +209,9 @@ def predict(home_team: str, away_team: str, neutral: bool) -> dict[str, float]:
     # structurally symmetric. Averaging with the mirrored prediction guarantees
     # that A vs B and B vs A return identical distributions.
     if neutral:
-        mirrored = build_feature_vector(away, home, neutral=True)
+        mirrored = build_feature_vector(
+            away, home, neutral=True, market=mirror_market(market)
+        )
         proba_mirrored = model.predict_proba(mirrored)[0][::-1]
         proba = (proba + proba_mirrored) / 2.0
 

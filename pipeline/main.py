@@ -5,12 +5,13 @@ from __future__ import annotations
 import argparse
 from datetime import date
 
-from download_data import get_connection, run_download
-from download_squad_values import run_squad_download
-from download_schedule import find_fixture, infer_neutral, refresh_schedule
-from feature_engineering import run_feature_engineering
-from predict import format_probs, predict, resolve_team
-from train import run_train
+from .download_data import get_connection, run_download
+from .download_prematch_odds import run_prematch_download
+from .download_squad_values import run_squad_download
+from .download_schedule import find_fixture, infer_neutral, refresh_schedule
+from .feature_engineering import run_feature_engineering
+from .predict import format_probs, predict, resolve_team
+from .train import run_train
 
 
 def compute_cutoff(match_date: str | None) -> str:
@@ -98,6 +99,9 @@ def run_pipeline(
     print("\n=== Download squad values ===")
     run_squad_download(force=force_download)
 
+    print("\n=== Download pre-match odds ===")
+    run_prematch_download(force=force_download)
+
     print("\n=== Feature engineering ===")
     run_feature_engineering(cutoff=cutoff)
 
@@ -105,7 +109,8 @@ def run_pipeline(
     run_train(cutoff=cutoff, retrain=retrain)
 
     print("\n=== Prediction ===")
-    probs = predict(home_team, away_team, neutral=neutral)
+    match_date = fixture.date if fixture else None
+    probs = predict(home_team, away_team, neutral=neutral, match_date=match_date)
     print(format_probs(home_team, away_team, probs))
     print("\nDetailed probabilities:")
     print(f"  {home_team} win: {probs[f'{home_team}_win']:.4f}")

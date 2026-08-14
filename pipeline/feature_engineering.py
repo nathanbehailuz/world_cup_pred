@@ -8,12 +8,11 @@ import sqlite3
 from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
-DB_PATH = Path(__file__).parent / "data" / "worldcup.db"
+from .paths import DB_PATH
 
 INITIAL_ELO = 1500.0
 HOME_ADVANTAGE = 100.0
@@ -351,6 +350,78 @@ def build_features(
     return features_df, ratings_df
 
 
+def attach_prematch_markets(
+    features: pd.DataFrame, conn: sqlite3.Connection
+) -> pd.DataFrame:
+    """Left-join pre-match odds and Predictz signals onto every feature row."""
+    out = features.copy()
+
+    odds_exists = conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='prematch_odds'"
+    ).fetchone()
+    if odds_exists:
+        odds_df = pd.read_sql_query(
+            """
+            SELECT date, home_team, away_team,
+                   home_odds AS market_home_odds,
+                   draw_odds AS market_draw_odds,
+                   away_odds AS market_away_odds,
+                   implied_home AS market_implied_home,
+                   implied_draw AS market_implied_draw,
+                   implied_away AS market_implied_away,
+                   implied_diff AS market_implied_diff
+            FROM prematch_odds
+            """,
+            conn,
+        )
+        out = out.merge(
+            odds_df,
+            on=["date", "home_team", "away_team"],
+            how="left",
+        )
+    else:
+        for col in (
+            "market_home_odds",
+            "market_draw_odds",
+            "market_away_odds",
+            "market_implied_home",
+            "market_implied_draw",
+            "market_implied_away",
+            "market_implied_diff",
+        ):
+            out[col] = float("nan")
+
+    preds_exists = conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='prematch_predictions'"
+    ).fetchone()
+    if preds_exists:
+        pred_df = pd.read_sql_query(
+            """
+            SELECT date, home_team, away_team,
+                   pred_home_pct AS predictz_home_pct,
+                   pred_draw_pct AS predictz_draw_pct,
+                   pred_away_pct AS predictz_away_pct
+            FROM prematch_predictions
+            """,
+            conn,
+        )
+        out = out.merge(
+            pred_df,
+            on=["date", "home_team", "away_team"],
+            how="left",
+        )
+    else:
+        out["predictz_home_pct"] = float("nan")
+        out["predictz_draw_pct"] = float("nan")
+        out["predictz_away_pct"] = float("nan")
+
+    if "market_home_odds" in out.columns:
+        out["has_prematch_odds"] = out["market_home_odds"].notna().astype(int)
+    else:
+        out["has_prematch_odds"] = 0
+    return out
+
+
 def save_tables(
     conn: sqlite3.Connection, features: pd.DataFrame, ratings: pd.DataFrame
 ) -> None:
@@ -380,9 +451,12 @@ def run_feature_engineering(cutoff: str | None = None) -> None:
         squad_snapshots=squad_snapshots,
         ratings_as_of=cutoff,
     )
+    features = attach_prematch_markets(features, conn)
     save_tables(conn, features, ratings)
 
+    n_with_odds = int(features["has_prematch_odds"].sum())
     print(f"Wrote {len(features)} rows to features table.")
+    print(f"  Pre-match odds attached: {n_with_odds} rows.")
     print(f"Wrote {len(ratings)} teams to team_ratings table.")
     print("\nTop 10 by Elo:")
     for rank, row in enumerate(ratings.head(10).itertuples(index=False), start=1):

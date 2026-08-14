@@ -1,6 +1,6 @@
 # Planned Work
 
-Deferred items with concrete plans. Completed work is logged in `DEVLOG.md`.
+Deferred items with concrete plans. Completed work is logged in [DEVLOG.md](DEVLOG.md).
 
 ## 1. SHAP values for per-prediction attribution (optional)
 

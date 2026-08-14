@@ -10,7 +10,6 @@ from __future__ import annotations
 import argparse
 import json
 import sqlite3
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -19,9 +18,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, log_loss
 from sklearn.preprocessing import StandardScaler
 
-DB_PATH = Path(__file__).parent / "data" / "worldcup.db"
-MODEL_PATH = Path(__file__).parent / "models" / "xgb_model.json"
-META_PATH = Path(__file__).parent / "models" / "model_meta.json"
+from .paths import DB_PATH, META_PATH, MODEL_PATH
 
 TRAIN_CUTOFF = "2023-01-01"
 MIN_MATCH_DATE = "1990-01-01"
@@ -32,6 +29,13 @@ SQUAD_FEATURE_COLUMNS = [
     "home_squad_value_log",
     "away_squad_value_log",
     "squad_value_log_diff",
+]
+
+MARKET_FEATURE_COLUMNS = [
+    "market_implied_home",
+    "market_implied_draw",
+    "market_implied_away",
+    "market_implied_diff",
 ]
 
 BASE_FEATURE_COLUMNS = [
@@ -53,6 +57,7 @@ BASE_FEATURE_COLUMNS = [
 ]
 
 FULL_FEATURE_COLUMNS = BASE_FEATURE_COLUMNS + SQUAD_FEATURE_COLUMNS
+FULL_WITH_MARKET_COLUMNS = FULL_FEATURE_COLUMNS + MARKET_FEATURE_COLUMNS
 
 XGB_PARAMS = dict(
     objective="multi:softprob",
@@ -80,6 +85,8 @@ def swap_columns(feature_columns: list[str]) -> list[tuple[str, str]]:
     ]
     if "home_squad_value_log" in feature_columns:
         swaps.append(("home_squad_value_log", "away_squad_value_log"))
+    if "market_implied_home" in feature_columns:
+        swaps.append(("market_implied_home", "market_implied_away"))
     return swaps
 
 
@@ -487,7 +494,7 @@ def generate_sample_predictions(
 def add_live_symmetry_sample(samples: list[dict]) -> list[dict]:
     """France vs Brazil neutral symmetry using current team_ratings + saved model."""
     try:
-        from predict import predict
+        from .predict import predict
 
         p_ab = predict("France", "Brazil", neutral=True)
         p_ba = predict("Brazil", "France", neutral=True)
@@ -621,7 +628,7 @@ def training_is_current(cutoff: str | None, retrain: bool) -> bool:
     if meta.get("feature_cutoff") != cutoff:
         return False
     return (
-        len(meta.get("experiments") or []) >= 4
+        len(meta.get("experiments") or []) >= 5
         and "bootstrap_ci" in meta
         and "feature_importance" in meta
     )
@@ -680,6 +687,13 @@ def run_train(cutoff: str | None = None, retrain: bool = False) -> bool:
             competitive_only=False,
             feature_columns=no_squad_features,
             label="train-all-matches-no-squad",
+        ),
+        run_experiment(
+            df,
+            test,
+            competitive_only=False,
+            feature_columns=FULL_WITH_MARKET_COLUMNS,
+            label="train-all-matches-with-market",
         ),
     ]
 

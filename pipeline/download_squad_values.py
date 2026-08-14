@@ -12,12 +12,11 @@ import argparse
 import io
 import sqlite3
 from datetime import date
-from pathlib import Path
 
 import pandas as pd
 import requests
 
-from download_data import DB_PATH, get_connection, normalize_team_name
+from .download_data import DB_PATH, get_connection, normalize_team_name
 
 PLAYERS_URL = (
     "https://pub-e682421888d945d684bcae8890b0ec20.r2.dev/data/players.csv.gz"

@@ -6,12 +6,11 @@ import argparse
 import sqlite3
 from datetime import date
 from io import StringIO
-from pathlib import Path
 
 import pandas as pd
 import requests
 
-DB_PATH = Path(__file__).parent / "data" / "worldcup.db"
+from .paths import DB_PATH
 MARTJ42_URL = (
     "https://raw.githubusercontent.com/martj42/international_results/master/results.csv"
 )
@@ -35,6 +34,11 @@ TEAM_NAME_MAP = {
     "Congo DR": "DR Congo",
     "Congo-Kinshasa": "DR Congo",
     "Congo-Brazzaville": "Congo",
+    "Bosnia & Herzegovina": "Bosnia and Herzegovina",
+    "Bosnia-Herzegovina": "Bosnia and Herzegovina",
+    "D.R. Congo": "DR Congo",
+    "United States of America": "USA",
+    "Curacao": "Curaçao",
 }
 
 

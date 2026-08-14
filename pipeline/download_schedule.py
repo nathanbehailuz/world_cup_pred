@@ -5,12 +5,11 @@ from __future__ import annotations
 import re
 import sqlite3
 from dataclasses import dataclass
-from pathlib import Path
 
 import pandas as pd
 import requests
 
-from download_data import DB_PATH, get_connection, normalize_team_name
+from .download_data import DB_PATH, get_connection, normalize_team_name
 
 SCHEDULE_URL = "https://fixturedownload.com/feed/json/fifa-world-cup-2026"
 
