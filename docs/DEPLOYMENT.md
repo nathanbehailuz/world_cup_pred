@@ -66,13 +66,19 @@ Frontend pages that do not need live inference (Evaluate, Analysis, Methodology 
    npm i -g vercel
    ```
 
-2. From the **repo root**, link the project once:
+2. In the Vercel project **Settings → General / Build & Development**:
+
+   - **Root Directory:** leave empty (repository root). Do **not** set `web/frontend` — that deploys the SPA only, so `/predict` 404s without an SPA rewrite and `/api` never exists.
+   - **Framework Preset:** **Services** (required for the root `vercel.json` `services` block).
+   - **Build Command:** leave empty or `npm run build` — never `npm run dev` / `vite` (that hangs until the 45m timeout).
+
+3. From the **repo root**, link the project once:
 
    ```bash
    vercel link
    ```
 
-3. Prefer connecting the GitHub repo in the Vercel dashboard so pushes create preview/production deploys automatically. CLI deploys still work without that.
+4. Prefer connecting the GitHub repo in the Vercel dashboard so pushes create preview/production deploys automatically. CLI deploys still work without that.
 
 No special env vars are required for the default setup: the frontend uses relative `/api`, and the backend reads models/DB from disk.
 
@@ -181,10 +187,11 @@ Before a production ship that touches the model or ratings:
 | Symptom | Likely cause |
 |---------|----------------|
 | Predict 503 / “file not found” | Missing `models/*` or `data/inference.db` in the deployment |
-| `/api/*` 404 on Vercel | Deployed from wrong directory (not repo root) or outdated `vercel.json` |
+| `/` works but `/predict` is Vercel `NOT_FOUND` | SPA deep link with no rewrite. Usually Root Directory was set to `web/frontend`. Use repo root + Framework **Services**, or ship `web/frontend/vercel.json` SPA rewrite to `index.html` |
+| `/api/*` 404 on Vercel | Root Directory is `web/frontend` (frontend-only), Framework is not **Services**, or deploy was not from the repo root |
 | Frontend loads, API fails CORS | Unlikely with same-origin `/api`; check rewrite / service status in Vercel |
 | `/wc2026/simulate` times out | Workload exceeds function `maxDuration` (60s); reduce work or raise limit on a plan that allows it |
 | Huge upload / install | Confirm `.vercelignore` is present; backend should install `requirements-api.txt` only |
-| Build hangs ~45min / logs show `vite` “ready” | Build ran `npm run dev` instead of `npm run build`. Frontend service must set `buildCommand: npm run build` (see `vercel.json`); also clear a mistaken Build Command in the Vercel dashboard |
+| Build hangs ~45min / logs show `vite` “ready” | Build ran `npm run dev` instead of `npm run build`. Frontend service must set `buildCommand: npm run build` (see root `vercel.json`); clear a mistaken Build Command in the dashboard |
 
 Inspect a deployment in the Vercel dashboard (build logs, runtime logs) or with the CLI (`vercel inspect`, `vercel logs`) once the CLI is installed and the project is linked.
