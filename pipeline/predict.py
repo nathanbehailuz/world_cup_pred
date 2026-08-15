@@ -11,7 +11,7 @@ import xgboost as xgb
 
 from .download_data import normalize_team_name
 from .fifa_codes import FIFA_CODE_TO_TEAM
-from .paths import DB_PATH, META_PATH, MODEL_PATH
+from .paths import META_PATH, MODEL_PATH, resolve_inference_db
 
 OUTCOME_LABELS = ("home_win", "draw", "away_win")
 
@@ -193,7 +193,8 @@ def predict(
             f"Model not found at {MODEL_PATH}. Run train.py first."
         )
 
-    conn = sqlite3.connect(DB_PATH)
+    db_path = resolve_inference_db()
+    conn = sqlite3.connect(db_path)
     home = load_team_rating(conn, home_team)
     away = load_team_rating(conn, away_team)
     market = load_prematch_markets(conn, home_team, away_team, match_date)

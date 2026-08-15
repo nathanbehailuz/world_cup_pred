@@ -18,7 +18,7 @@ from .download_schedule import (
     venue_host_country,
 )
 from .fifa_codes import FIFA_CODE_TO_TEAM
-from .paths import DB_PATH, META_PATH, MODEL_PATH
+from .paths import META_PATH, MODEL_PATH, resolve_inference_db
 from .predict import (
     build_feature_vector,
     load_prematch_markets,
@@ -98,9 +98,10 @@ def narrative(
 def list_wc_fixtures(conn: sqlite3.Connection | None = None) -> list[Fixture]:
     close = False
     if conn is None:
-        if not DB_PATH.exists():
-            raise FileNotFoundError(f"{DB_PATH} not found.")
-        conn = sqlite3.connect(DB_PATH)
+        db_path = resolve_inference_db()
+        if not db_path.exists():
+            raise FileNotFoundError(f"{db_path} not found.")
+        conn = sqlite3.connect(db_path)
         close = True
     try:
         ensure_schedule_table(conn)
@@ -155,7 +156,7 @@ def predict_fixture(
     """Run the production model on one WC fixture; return Evaluate-shaped row + extras."""
     close = False
     if conn is None:
-        conn = sqlite3.connect(DB_PATH)
+        conn = sqlite3.connect(resolve_inference_db())
         close = True
     model = model or load_model()
 
@@ -263,10 +264,11 @@ def simulate_pair(team_a: str, team_b: str) -> dict:
     if a == b:
         raise ValueError("Select two different teams")
 
-    if not DB_PATH.exists():
-        raise FileNotFoundError(f"{DB_PATH} not found.")
+    db_path = resolve_inference_db()
+    if not db_path.exists():
+        raise FileNotFoundError(f"{db_path} not found.")
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(db_path)
     try:
         fixture = find_fixture(conn, a, b)
         if fixture is None:
@@ -280,13 +282,14 @@ def simulate_pair(team_a: str, team_b: str) -> dict:
 
 def simulate_all_wc() -> dict:
     """Run the production model on every resolved WC 2026 fixture."""
-    if not DB_PATH.exists():
-        raise FileNotFoundError(f"{DB_PATH} not found.")
+    db_path = resolve_inference_db()
+    if not db_path.exists():
+        raise FileNotFoundError(f"{db_path} not found.")
     if not META_PATH.exists():
         raise FileNotFoundError(f"{META_PATH} not found.")
 
     model = load_model()
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(db_path)
     try:
         fixtures = list_wc_fixtures(conn)
         matches = [

@@ -1,0 +1,14 @@
+.venv
+venv
+**/__pycache__
+**/*.pyc
+.git
+docs
+results
+web/frontend/node_modules
+web/frontend/dist
+data/worldcup.db
+data/raw_matches_with_odds.csv
+data/predictz_predictions.csv
+*.csv
+.env

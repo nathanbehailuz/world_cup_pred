@@ -5,11 +5,13 @@ from __future__ import annotations
 import re
 import sqlite3
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
-import pandas as pd
-import requests
+from .download_data import get_connection, normalize_team_name
+from .paths import DB_PATH
 
-from .download_data import DB_PATH, get_connection, normalize_team_name
+if TYPE_CHECKING:
+    import pandas as pd
 
 SCHEDULE_URL = "https://fixturedownload.com/feed/json/fifa-world-cup-2026"
 
@@ -95,6 +97,8 @@ def infer_neutral(home_team: str, away_team: str, location: str) -> bool:
 
 
 def fetch_schedule_json() -> list[dict]:
+    import requests
+
     print(f"Fetching WC 2026 schedule from {SCHEDULE_URL} ...")
     response = requests.get(SCHEDULE_URL, timeout=60)
     response.raise_for_status()
@@ -127,6 +131,8 @@ def parse_fixtures(raw: list[dict]) -> list[Fixture]:
 
 
 def load_existing_schedule(conn: sqlite3.Connection) -> pd.DataFrame:
+    import pandas as pd
+
     ensure_schedule_table(conn)
     try:
         return pd.read_sql_query("SELECT * FROM schedule", conn)
@@ -135,6 +141,8 @@ def load_existing_schedule(conn: sqlite3.Connection) -> pd.DataFrame:
 
 
 def save_schedule(conn: sqlite3.Connection, fixtures: list[Fixture]) -> None:
+    import pandas as pd
+
     ensure_schedule_table(conn)
     conn.execute("DELETE FROM schedule")
     rows = [

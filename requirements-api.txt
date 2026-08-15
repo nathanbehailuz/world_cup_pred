@@ -1,0 +1,6 @@
+# Lean runtime deps for the FastAPI predict service on Vercel.
+# Full pipeline training still uses requirements.txt.
+numpy>=1.24.0
+xgboost>=2.0.0
+fastapi>=0.115.0
+pydantic>=2.0.0

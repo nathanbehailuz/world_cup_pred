@@ -6,11 +6,13 @@ import argparse
 import sqlite3
 from datetime import date
 from io import StringIO
-
-import pandas as pd
-import requests
+from typing import TYPE_CHECKING
 
 from .paths import DB_PATH
+
+if TYPE_CHECKING:
+    import pandas as pd
+
 MARTJ42_URL = (
     "https://raw.githubusercontent.com/martj42/international_results/master/results.csv"
 )
@@ -75,6 +77,9 @@ def get_connection() -> sqlite3.Connection:
 
 
 def download_martj42() -> pd.DataFrame:
+    import pandas as pd
+    import requests
+
     print(f"Downloading martj42 results from {MARTJ42_URL} ...")
     response = requests.get(MARTJ42_URL, timeout=120)
     response.raise_for_status()
@@ -111,6 +116,9 @@ def download_martj42() -> pd.DataFrame:
 
 
 def download_shootouts() -> pd.DataFrame:
+    import pandas as pd
+    import requests
+
     print(f"Downloading shootout results from {SHOOTOUTS_URL} ...")
     response = requests.get(SHOOTOUTS_URL, timeout=120)
     response.raise_for_status()

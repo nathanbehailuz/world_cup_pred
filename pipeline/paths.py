@@ -11,8 +11,17 @@ MODELS_DIR = ROOT / "models"
 RESULTS_DIR = ROOT / "results"
 
 DB_PATH = DATA_DIR / "worldcup.db"
+# Slim DB for live predict (team_ratings + schedule). Prefer this when present.
+INFERENCE_DB_PATH = DATA_DIR / "inference.db"
 MODEL_PATH = MODELS_DIR / "xgb_model.json"
 META_PATH = MODELS_DIR / "model_meta.json"
+
+
+def resolve_inference_db() -> Path:
+    """DB used by predict / wc_simulate (slim inference.db when available)."""
+    if INFERENCE_DB_PATH.exists():
+        return INFERENCE_DB_PATH
+    return DB_PATH
 
 HUGGINGFACE_CACHE = DATA_DIR / "raw_matches_with_odds.csv"
 PREDICTZ_CACHE = DATA_DIR / "predictz_predictions.csv"

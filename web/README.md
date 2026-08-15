@@ -27,6 +27,23 @@ Endpoints:
 
 Venue / home-away are inferred from the fixture + host country (USA / Mexico / Canada). Pairings must appear on the WC 2026 schedule.
 
+## Deploy (Vercel Services)
+
+Repo-root `vercel.json` ships the Vite frontend and FastAPI backend together:
+
+```bash
+npx vercel        # preview
+npx vercel --prod # production
+```
+
+Inference artifacts committed for the API: `models/xgb_model.json`, `models/model_meta.json`, `data/inference.db` (team_ratings + schedule only). After regenerating the full pipeline DB, refresh the slim DB:
+
+```bash
+.venv/bin/python -m pipeline.export_inference_db
+```
+
+Frontend calls `/api/*`; Vercel rewrites that to the FastAPI service (`maxDuration` 60s for `/wc2026/simulate`).
+
 ## Frontend
 
 ```bash
