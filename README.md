@@ -1,74 +1,33 @@
-# world_cup_pred
+# WC 2026 Predictor
 
-Predict World Cup 2026 football match outcomes (home win / draw / away win) using historical international match data.
+Who's lifting the trophy? Ask the model — not your group chat.
 
-## Setup
+**Live site → [world-cup-26-pred.vercel.app](https://world-cup-26-pred.vercel.app/)**
+
+- [Predict a match](https://world-cup-26-pred.vercel.app/predict)
+- [How it works](https://world-cup-26-pred.vercel.app/methodology)
+- [Did we miss?](https://world-cup-26-pred.vercel.app/evaluate)
+- [Model guts](https://world-cup-26-pred.vercel.app/analysis)
+
+XGBoost forecasts for FIFA World Cup 2026 — home win / draw / away win — from Elo, form, rest days, and squad value. Point-in-time features so we don't peek at the future (tempting as that is).
+
+## Run it yourself
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate   # Windows: .venv\Scripts\activate
+python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
+python -m pipeline.main MEX RSA    # schedule-aware: download → train → predict
 ```
 
-## Quick start
+FIFA codes (`FRA`, `BRA`) or full names both work. Add `--neutral` when there's no WC fixture / no home edge.
 
-```bash
-python -m pipeline.main MEX RSA          # schedule-aware full pipeline
-python -m pipeline.main FRA SEN          # looks up fixture date + venue
-python -m pipeline.main FRA BRA --neutral   # no WC fixture: uses today's data
-```
+## Layout
 
-`pipeline.main` resolves FIFA codes, reloads the WC 2026 schedule, caps historical
-data at `min(today, match date)` for point-in-time correctness, then runs
-download → squad values → features → train → predict.
+| Path | What |
+|------|------|
+| `pipeline/` | download, features, train, predict |
+| `web/` | site (Vite) + API (Modal) |
+| `docs/` | methodology, deployment, todo |
 
-**Pipeline caching:** each stage skips work when already current:
-- `pipeline.download_data` — skips if martj42 data covers today (use `--force-download` to override)
-- `pipeline.download_squad_values` — skips if `squad_values` table exists (use `--force-download` to refresh)
-- `pipeline.train` — skips retraining if the same cutoff was used and analysis is already in `model_meta.json` (use `--retrain` to force)
-
-Predictions are reported as **Team A win / Draw / Team B win**; internally the model uses home/away slots from historical data, with mirror-averaging on neutral venues.
-
-Teams are given as official FIFA three-letter codes (FRA, BRA, MEX, RSA, ...);
-full names ("France") also work. The mapping lives in `pipeline/fifa_codes.py`.
-
-### Manual pipeline (step by step)
-
-```bash
-python -m pipeline.download_data
-python -m pipeline.feature_engineering
-python -m pipeline.train
-python -m pipeline.predict FRA BRA --neutral
-```
-
-## Project layout
-
-| Path | Purpose |
-|------|---------|
-| `pipeline/` | ML code: download, features, train, predict, backtest |
-| `pipeline/main.py` | Primary entry — full schedule-aware pipeline |
-| `pipeline/paths.py` | Shared paths to `data/`, `models/`, `results/` |
-| `data/worldcup.db` | SQLite database (matches, features, ratings) |
-| `models/xgb_model.json` | Trained XGBoost model |
-| `results/` | Backtest and evaluation artifacts |
-| `docs/` | `METHODOLOGY.md`, `DEVLOG.md`, `WEBSITE.md`, `TODO.md` |
-| `web/` | Website scaffold (`api/`, `frontend/` — stack TBD) |
-
-## Keeping predictions current during the tournament
-
-After each matchday, reload the schedule (picks up results and knockout
-placeholders resolving to real teams), then predict:
-
-```bash
-python -m pipeline.download_schedule    # reload fixtures + print what changed
-python -m pipeline.main FRA SEN         # full pipeline with fresh data
-```
-
-Or use `pipeline.main` alone — it refreshes the schedule automatically on every run.
-
-`pipeline.main` infers home advantage for USA/Mexico/Canada host venues; override
-with `--neutral` or `--home` if needed.
-
-## Data source
-
-- [martj42/international_results](https://github.com/martj42/international_results) — international match history through mid-2026
+Data: [martj42/international_results](https://github.com/martj42/international_results).  
+Built with love by [Nathan](https://nathanbehailu.vercel.app/).
