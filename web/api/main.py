@@ -14,7 +14,8 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from pipeline.wc_simulate import (  # noqa: E402
+# Precomputed JSON serve path — keeps the Vercel bundle free of xgboost.
+from pipeline.wc_serve import (  # noqa: E402
     fixtures_payload,
     simulate_all_wc,
     simulate_pair,

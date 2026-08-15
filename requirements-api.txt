@@ -1,6 +1,5 @@
 # Lean runtime deps for the FastAPI predict service on Vercel.
-# Full pipeline training still uses requirements.txt.
-numpy>=1.24.0
-xgboost>=2.0.0
+# Inference uses data/wc2026_predictions.json (no xgboost at serve time).
+# Full pipeline training / export still uses requirements.txt.
 fastapi>=0.115.0
 pydantic>=2.0.0

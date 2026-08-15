@@ -36,13 +36,24 @@ npx vercel        # preview
 npx vercel --prod # production
 ```
 
-Inference artifacts committed for the API: `models/xgb_model.json`, `models/model_meta.json`, `data/inference.db` (team_ratings + schedule only). After regenerating the full pipeline DB, refresh the slim DB:
+Inference artifacts committed for the API:
+
+- `data/wc2026_predictions.json` — precomputed fixture predictions (required on Vercel; no xgboost at runtime)
+- `data/inference.db` — optional local slim DB for live model runs
+- `models/xgb_model.json`, `models/model_meta.json` — used when regenerating predictions locally
+
+After regenerating the full pipeline DB / retraining, refresh deploy artifacts:
 
 ```bash
 .venv/bin/python -m pipeline.export_inference_db
+.venv/bin/python -m pipeline.export_wc_predictions
 ```
 
-Frontend calls `/api/*`; Vercel rewrites that to the FastAPI service (`maxDuration` 60s for `/wc2026/simulate`).
+Frontend calls `/api/*`; Vercel rewrites that to the FastAPI service.
+
+**Vercel project settings:** Root Directory must be empty (repo root), not `web/frontend`. Otherwise only the SPA builds and `/api` 404s.
+
+**Why precomputed?** Linux xgboost wheels exceed Vercel’s ~225MB serverless bundle limit. The API serves `wc2026_predictions.json` via `pipeline.wc_serve` instead.
 
 ## Frontend
 

@@ -13,6 +13,8 @@ RESULTS_DIR = ROOT / "results"
 DB_PATH = DATA_DIR / "worldcup.db"
 # Slim DB for live predict (team_ratings + schedule). Prefer this when present.
 INFERENCE_DB_PATH = DATA_DIR / "inference.db"
+# Precomputed WC 2026 API payload (no xgboost needed at serve time).
+WC2026_PREDICTIONS_PATH = DATA_DIR / "wc2026_predictions.json"
 MODEL_PATH = MODELS_DIR / "xgb_model.json"
 META_PATH = MODELS_DIR / "model_meta.json"
 

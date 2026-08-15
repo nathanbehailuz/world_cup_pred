@@ -34,27 +34,32 @@ Browser
 
 Backend install/runtime:
 
-- `installCommand`: `pip install -r requirements-api.txt` (lean deps: numpy, xgboost, fastapi, pydantic)
+- `installCommand`: `pip install --no-cache-dir -r requirements-api.txt` (fastapi + pydantic only)
+- Serve path: `pipeline.wc_serve` reads `data/wc2026_predictions.json` (no xgboost on Vercel)
 - Entrypoint also noted in [`pyproject.toml`](../pyproject.toml) (`[tool.vercel]`)
 - Full training stack stays in `requirements.txt` and is **not** required on Vercel
+- Project **Root Directory** in the Vercel dashboard must be empty (repo root). If it is `web/frontend`, only the SPA builds and `/api` 404s
 
 ---
 
 ## What must be in the deploy
 
-The API loads precomputed artifacts from the repo (no retrain on request):
+The API loads a **precomputed** WC 2026 predictions artifact (no XGBoost on the server — Linux wheels exceed Vercel’s ~225MB function limit):
 
 | Artifact | Path | Purpose |
 |----------|------|---------|
-| Model | `models/xgb_model.json` | Production XGBoost |
-| Meta | `models/model_meta.json` | Cutoffs / feature list metadata |
-| Slim DB | `data/inference.db` | `team_ratings` + `schedule` only |
+| Predictions | `data/wc2026_predictions.json` | Fixture list + probs for `/predict` and `/wc2026/simulate` |
+| Meta (optional) | `models/model_meta.json` | Local/docs; not required at serve time |
 
-These are **tracked in git** so deploys work without uploading the full pipeline DB.
+Regenerate after retrain / schedule refresh:
+
+```bash
+.venv/bin/python -m pipeline.export_wc_predictions
+```
 
 Do **not** ship `data/worldcup.db` or raw caches — they are ignored (see [`.gitignore`](../.gitignore) and [`.vercelignore`](../.vercelignore)).
 
-Frontend pages that do not need live inference (Evaluate, Analysis, Methodology copy, etc.) use committed JSON under `web/frontend/src/data/`. Live Predict / WC simulate need the backend + artifacts above.
+Live model inference (`pipeline.wc_simulate` + xgboost) remains available **locally** with the full `requirements.txt` stack.
 
 ---
 
@@ -86,18 +91,16 @@ Optional: set `VITE_API_BASE` at **build** time only if the API is hosted on a d
 
 ---
 
-## Refresh inference artifacts before shipping model/data changes
+## Refresh prediction artifacts before shipping model/data changes
 
-After you regenerate the full pipeline DB (`data/worldcup.db`) or retrain:
+After you regenerate the full pipeline DB or retrain:
 
 ```bash
-# from repo root, with venv that has the full pipeline deps
-.venv/bin/python -m pipeline.export_inference_db
+.venv/bin/python -m pipeline.export_inference_db   # optional, for local live model
+.venv/bin/python -m pipeline.export_wc_predictions # required for Vercel API
 ```
 
-This writes `data/inference.db` from `team_ratings` + `schedule`. Commit the updated slim DB (and new `models/*` if you retrained), then deploy.
-
-`pipeline.paths.resolve_inference_db()` prefers `data/inference.db` when present; otherwise it falls back to `worldcup.db` (local only).
+Commit the updated `data/wc2026_predictions.json`, then deploy.
 
 ---
 

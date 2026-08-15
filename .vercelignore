@@ -12,3 +12,5 @@ data/raw_matches_with_odds.csv
 data/predictz_predictions.csv
 *.csv
 .env
+# Model weights not needed at serve time (precomputed JSON).
+models/xgb_model.json

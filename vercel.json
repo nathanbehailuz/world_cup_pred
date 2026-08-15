@@ -13,10 +13,11 @@
       "root": ".",
       "framework": "fastapi",
       "entrypoint": "web.api.main:app",
-      "installCommand": "pip install -r requirements-api.txt",
+      "installCommand": "pip install --no-cache-dir -r requirements-api.txt",
       "functions": {
         "web/api/main.py": {
-          "maxDuration": 60
+          "maxDuration": 60,
+          "excludeFiles": "{docs/**,results/**,web/frontend/**,models/**,**/.venv/**,**/node_modules/**,data/worldcup.db,data/*.csv,**/*.md}"
         }
       },
       "rewrites": [
