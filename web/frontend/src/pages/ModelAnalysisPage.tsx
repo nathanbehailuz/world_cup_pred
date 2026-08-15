@@ -289,7 +289,7 @@ export function ModelAnalysisPage() {
         <h1 className="text-headline-lg text-primary">Model Analysis</h1>
         <p className="text-body-md text-on-surface-variant mt-2 max-w-2xl">
           Competitive holdout from {meta.train_cutoff} onward
-          {nTest != null ? ` (${nTest.toLocaleString()} matches)` : ''} — baselines, ablations,
+          {nTest != null ? ` (${nTest.toLocaleString()} matches)` : ''}: baselines, ablations,
           calibration, and error slices from training metadata.
         </p>
         <p className="font-label-caps text-slate-gray mt-3">
@@ -352,7 +352,7 @@ export function ModelAnalysisPage() {
               [{deltaCi.ci_low.toFixed(4)}, {deltaCi.ci_high.toFixed(4)}]
             </span>
             {deltaCi.ci_low < 0 && deltaCi.ci_high > 0
-              ? ' — includes zero; the edge over Elo is real but marginal.'
+              ? '. The interval includes zero; the edge over Elo is real but marginal.'
               : '.'}{' '}
             Bootstrap n={deltaCi.n_bootstrap.toLocaleString()}.
           </p>

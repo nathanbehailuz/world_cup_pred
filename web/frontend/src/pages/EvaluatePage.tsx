@@ -50,7 +50,7 @@ export function EvaluatePage() {
         <div>
           <h1 className="text-headline-lg text-primary tracking-tight">Holdout Explorer</h1>
           <p className="text-body-md text-on-surface-variant mt-1 max-w-2xl">
-            Precomputed predictions on the 2023+ test set — browse hits, misses, and surprise
+            Precomputed predictions on the 2023+ test set. Browse hits, misses, and surprise
             (log loss contribution).
           </p>
         </div>

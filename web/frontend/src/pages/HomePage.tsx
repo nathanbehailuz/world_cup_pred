@@ -4,7 +4,6 @@ import { getModelMeta, getWc2026Fixtures } from '../api/client'
 import { ProbabilityBar } from '../components/ProbabilityBar'
 import { Icon } from '../components/Icon'
 import { TeamLabel } from '../components/TeamFlag'
-import { pct } from '../lib/format'
 import type { ModelMeta, WcFixture } from '../types'
 
 export function HomePage() {
@@ -21,7 +20,6 @@ export function HomePage() {
 
   return (
     <main className="flex-grow w-full max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop py-12 flex flex-col gap-24">
-      {/* Hero — brand + headline + support + CTAs + metric plane */}
       <section className="grid grid-cols-1 md:grid-cols-12 gap-8 items-center pt-4 md:pt-8">
         <div className="md:col-span-7 flex flex-col gap-6 animate-fade-up">
           <p className="font-label-caps text-pitch-green">WC 2026 Predictor</p>
@@ -29,8 +27,8 @@ export function HomePage() {
             World Cup 2026: Probabilistic Match Forecasts
           </h1>
           <p className="text-body-lg text-on-surface-variant max-w-2xl">
-            Point-in-time W/D/L probabilities for international fixtures from Elo, form, and squad
-            value — not hard labels.
+            Point-in-time win, draw, and loss probabilities for international fixtures from Elo,
+            form, and squad value.
           </p>
           <div className="flex flex-wrap gap-4 pt-2">
             <Link
@@ -49,8 +47,8 @@ export function HomePage() {
         </div>
         <div className="md:col-span-5 grid grid-cols-2 gap-4 animate-fade-in" style={{ animationDelay: '120ms' }}>
           <div className="col-span-2 bg-surface-container-lowest border border-surface-variant rounded p-6 flex flex-col gap-2">
-            <span className="font-label-caps text-on-surface-variant">Model Architecture</span>
-            <span className="text-headline-md text-pitch-green font-mono">XGBoost softprob</span>
+            <span className="font-label-caps text-on-surface-variant">Model</span>
+            <span className="text-headline-md text-pitch-green font-mono">XGBoost</span>
           </div>
           <div className="bg-surface-container-lowest border border-surface-variant rounded p-6 flex flex-col gap-2">
             <span className="font-label-caps text-on-surface-variant">Holdout size</span>
@@ -75,13 +73,12 @@ export function HomePage() {
         </div>
       </section>
 
-      {/* What we predict */}
       <section className="flex flex-col gap-4 max-w-3xl">
         <h2 className="text-headline-sm text-primary">What we predict</h2>
         <p className="text-body-md text-on-surface-variant">
-          A probability vector over Team A win / Draw / Team B win. Argmax is secondary — draws are
-          common but rarely the single most likely class. Knockout fixtures use advancement labels
-          (ET/penalties); group draws remain possible.{' '}
+          Probabilities for Team A win, draw, and Team B win. The most likely class is secondary;
+          draws are common but rarely the single most likely outcome. Knockout fixtures use
+          advancement labels (extra time and penalties); group draws remain possible.{' '}
           <Link to="/methodology" className="text-pitch-green hover:underline">
             Read the methodology
           </Link>
@@ -89,7 +86,6 @@ export function HomePage() {
         </p>
       </section>
 
-      {/* Featured fixtures */}
       <section className="flex flex-col gap-6">
         <div className="flex justify-between items-end border-b border-surface-variant pb-2">
           <h2 className="text-headline-sm text-primary">Featured Forecasts</h2>
@@ -137,7 +133,6 @@ export function HomePage() {
         </div>
       </section>
 
-      {/* Pipeline */}
       <section className="flex flex-col gap-8 pb-4">
         <h2 className="text-headline-sm text-primary text-center">Prediction Pipeline</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
@@ -156,7 +151,7 @@ export function HomePage() {
             {
               icon: 'model_training',
               title: 'XGBoost Inference',
-              body: 'multi:softprob with neutral mirror-and-average — calibrated W/D/L probabilities.',
+              body: 'Calibrated win, draw, and loss probabilities, with neutral fixtures mirrored and averaged.',
             },
           ].map((step) => (
             <div key={step.title} className="bg-surface flex flex-col items-center text-center gap-4 z-10 p-4">
@@ -170,7 +165,6 @@ export function HomePage() {
         </div>
       </section>
 
-      {/* CTA row */}
       <section className="border-t border-surface-variant pt-10 flex flex-col md:flex-row gap-4 justify-center items-center pb-8">
         <Link
           to="/predict"
@@ -182,19 +176,15 @@ export function HomePage() {
           to="/evaluate"
           className="border border-outline px-6 py-3 rounded font-label-caps hover:bg-surface-variant"
         >
-          See where we were wrong
+          Evaluate predictions
         </Link>
-        <Link to="/analysis" className="font-label-caps text-pitch-green hover:underline px-2">
-          Model analysis →
+        <Link
+          to="/analysis"
+          className="border border-outline px-6 py-3 rounded font-label-caps hover:bg-surface-variant"
+        >
+          Model analysis
         </Link>
       </section>
-
-      {meta && (
-        <p className="text-body-sm text-on-surface-variant text-center -mt-16">
-          As of cutoff {meta.feature_cutoff} · production log loss {xgb?.log_loss.toFixed(3)} on
-          competitive holdout · accuracy {xgb ? pct(xgb.accuracy) : '—'}
-        </p>
-      )}
     </main>
   )
 }

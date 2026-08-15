@@ -19,7 +19,7 @@
       "title": "Problem Formulation and Outcome Definition",
       "icon": "function",
       "paragraphs": [
-        "For fixture i between two national teams, conditional on venue status, the forecasting function returns the probability vector p_i = (p_{i,A}, p_{i,D}, p_{i,B}), corresponding to a Team A victory, draw, and Team B victory. Historical observations are represented using nominal home and away slots (classes 0, 1, and 2). This ordering is substantively meaningful for non-neutral fixtures but arbitrary for neutral-site matches; predictions for the latter are therefore symmetrized with respect to slot assignment.",
+        "For fixture $i$ between two national teams, conditional on venue status, the forecasting function returns the probability vector $p_i = (p_{i,A}, p_{i,D}, p_{i,B})$, corresponding to a Team A victory, draw, and Team B victory. Historical observations are represented using nominal home and away slots (classes 0, 1, and 2). This ordering is substantively meaningful for non-neutral fixtures but arbitrary for neutral-site matches; predictions for the latter are therefore symmetrized with respect to slot assignment.",
         "The dependent variable records the terminal match outcome rather than the result after regulation time. Fixtures resolved in extra time or by penalty shootout are assigned to the eventual winner, whereas the draw class is reserved for matches that conclude without a winner, including group-stage fixtures and friendlies. Consequently, the response variable is not homogeneous across competition formats: it represents a match result when a draw is admissible and an advancement outcome when the competition requires a winner. This distinction is especially important for interpretation of the draw probability, because the draw class is structurally unavailable in such knockout fixtures.",
         "The empirical objective is probability estimation rather than deterministic classification. Draws constitute approximately one quarter of international fixtures, yet need not be the modal class even when the associated probability is well calibrated. A single pooled model is estimated across national teams. Team-pair-specific models are avoided because head-to-head histories are typically sparse, and team identity is not entered directly as a covariate."
       ],
@@ -32,7 +32,7 @@
         {
           "kind": "notation",
           "title": "Notation and loss function",
-          "body": "Let x_i ∈ ℝ^d be features for match i.\nLet y_i be the one-hot outcome; f(x_i; θ) outputs p_i with Σ p = 1.\n\nMinimize L(θ) = −(1/N) Σ [ y^H log p^H + y^D log p^D + y^A log p^A ]"
+          "body": "x_i \\in \\mathbb{R}^d,\\quad y_i \\text{ one-hot},\\quad f(x_i;\\theta)=p_i,\\ \\sum p=1\n\nL(\\theta)=-\\frac{1}{N}\\sum_i\\sum_{c\\in\\{H,D,A\\}} y_i^c\\log p_i^c"
         }
       ]
     },

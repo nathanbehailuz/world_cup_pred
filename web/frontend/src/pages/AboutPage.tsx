@@ -24,7 +24,7 @@ export function AboutPage() {
               >
                 martj42/international_results
               </a>{' '}
-              — match history &amp; shootouts
+              (match history and shootouts)
             </li>
             <li>
               <a
@@ -35,7 +35,7 @@ export function AboutPage() {
               >
                 transfermarkt-datasets
               </a>{' '}
-              — squad market values
+              (squad market values)
             </li>
             <li>eloratings.net-style tiered K for Elo updates</li>
             <li>Official FIFA three-letter codes</li>

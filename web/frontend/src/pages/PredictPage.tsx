@@ -292,7 +292,7 @@ export function PredictPage() {
         <h1 className="text-headline-lg text-primary">WC 2026 Simulator</h1>
         <p className="text-body-md text-on-surface-variant max-w-2xl">
           Run the production model on FIFA World Cup 2026 fixtures. Venue and home/away slots are
-          inferred from the schedule and host country — you only pick the two nations.
+          inferred from the schedule and host country; you only pick the two nations.
         </p>
       </div>
 

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Icon } from '../components/Icon'
+import { MathBlock, RichText } from '../components/MathBlock'
 import methodologyJson from '../data/methodology.json'
 import type { MethodologyDoc, MethodologySection } from '../types'
 
@@ -16,7 +17,7 @@ function SectionBody({ section }: { section: MethodologySection }) {
 
       {section.paragraphs?.map((p) => (
         <p key={p.slice(0, 48)} className="text-body-md text-on-surface-variant leading-relaxed">
-          {p}
+          <RichText text={p} />
         </p>
       ))}
 
@@ -24,9 +25,15 @@ function SectionBody({ section }: { section: MethodologySection }) {
         c.kind === 'notation' ? (
           <div key={c.title} className="bg-surface-container-low border-l-2 border-slate-gray p-4 my-2">
             <h4 className="font-label-caps text-on-surface mb-2">{c.title}</h4>
-            <pre className="font-data-mono text-on-surface-variant text-sm bg-surface-container-lowest p-3 border border-outline-variant rounded overflow-x-auto whitespace-pre-wrap">
-              {c.body}
-            </pre>
+            <div className="bg-surface-container-lowest p-3 border border-outline-variant rounded overflow-x-auto space-y-3 text-on-surface">
+              {c.body
+                .split(/\n\s*\n/)
+                .map((block) => block.trim())
+                .filter(Boolean)
+                .map((tex) => (
+                  <MathBlock key={tex.slice(0, 32)} tex={tex} display className="block" />
+                ))}
+            </div>
           </div>
         ) : (
           <div

@@ -16,7 +16,7 @@ const ITEMS = [
   },
   {
     title: 'Holdout reuse',
-    body: 'The competitive 2023+ set is used for both model selection ablations and reported metrics — CIs help, but selection bias remains.',
+    body: 'The competitive 2023+ set is used for both model selection ablations and reported metrics. Confidence intervals help, but selection bias remains.',
   },
   {
     title: 'No in-match context',

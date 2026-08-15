@@ -20,7 +20,7 @@ export function FeaturesPage() {
         <p className="text-body-sm text-on-surface-variant">
           Sum of market values of a citizenship’s top-25 players (Transfermarkt). Dual nationals’
           actual national-team choice is ignored; fringe call-ups are missed; European-league bias
-          is known. Pre-2004 rows are often missing — XGBoost handles NaN natively.
+          is known. Pre-2004 rows are often missing; XGBoost handles NaN natively.
         </p>
       </section>
 

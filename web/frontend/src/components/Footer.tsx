@@ -23,6 +23,17 @@ export function Footer() {
           © 2026 World Cup Predictor. Probabilities are for research purposes and do not constitute
           betting advice. Probabilities ≠ bets.
         </p>
+        <p className="text-body-sm text-on-surface-variant text-center">
+          Built with love by{' '}
+          <a
+            href="https://nathanbehailu.vercel.app/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-pitch-green hover:underline"
+          >
+            Nathan
+          </a>
+        </p>
       </div>
     </footer>
   )
