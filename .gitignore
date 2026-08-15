@@ -10,3 +10,5 @@ venv/
 /data/worldcup.db
 /data/raw_matches_with_odds.csv
 /data/predictz_predictions.csv
+.vercel
+.env*
