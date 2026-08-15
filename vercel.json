@@ -1,32 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "services": {
-    "frontend": {
-      "root": "web/frontend",
-      "framework": "vite",
-      "installCommand": "npm install",
-      "buildCommand": "npm run build",
-      "outputDirectory": "dist",
-      "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
-    },
-    "backend": {
-      "root": ".",
-      "framework": "fastapi",
-      "entrypoint": "web.api.main:app",
-      "installCommand": "pip install --no-cache-dir -r requirements-api.txt",
-      "functions": {
-        "web/api/main.py": {
-          "maxDuration": 60,
-          "excludeFiles": "{docs/**,results/**,web/frontend/**,models/**,**/.venv/**,**/node_modules/**,data/worldcup.db,data/*.csv,**/*.md}"
-        }
-      },
-      "rewrites": [
-        { "source": "/api/:path(.*)?", "destination": "/:path" }
-      ]
-    }
-  },
-  "rewrites": [
-    { "source": "/api/(.*)", "destination": { "service": "backend" } },
-    { "source": "/(.*)", "destination": { "service": "frontend" } }
-  ]
+  "framework": "vite",
+  "installCommand": "npm install --prefix web/frontend",
+  "buildCommand": "npm run build --prefix web/frontend",
+  "outputDirectory": "web/frontend/dist",
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
 }

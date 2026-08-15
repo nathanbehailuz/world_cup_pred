@@ -1,13 +1,16 @@
 # Website
 
-Public site plan: [`docs/WEBSITE.md`](../docs/WEBSITE.md). Visual reference: [`docs/design.html`](../docs/design.html).
+Public site plan: [`docs/WEBSITE.md`](../docs/WEBSITE.md). Visual reference: [`docs/design.html`](../docs/design.html). Deploy: [`docs/DEPLOYMENT.md`](../docs/DEPLOYMENT.md).
 
 | Path | Role |
 |------|------|
-| `frontend/` | React + Vite + Tailwind UI |
+| `frontend/` | React + Vite + Tailwind UI (Vercel) |
 | `api/` | FastAPI wrapping `pipeline.wc_simulate` |
+| `modal_app.py` | Modal ASGI deploy of `web.api.main:app` + model weights |
 
 ## API (required for Predict)
+
+### Local
 
 From the **repo root**:
 
@@ -16,7 +19,21 @@ From the **repo root**:
 .venv/bin/uvicorn web.api.main:app --reload --port 8000
 ```
 
-Endpoints:
+### Modal (production)
+
+```bash
+.venv/bin/modal deploy web/modal_app.py
+# → https://nathanbehailuz--world-cup-pred-api.modal.run
+```
+
+After regenerating ratings / schedule:
+
+```bash
+.venv/bin/python -m pipeline.export_inference_db
+.venv/bin/modal deploy web/modal_app.py
+```
+
+Endpoints (same locally and on Modal):
 
 | Method | Path | Purpose |
 |--------|------|---------|
@@ -27,33 +44,15 @@ Endpoints:
 
 Venue / home-away are inferred from the fixture + host country (USA / Mexico / Canada). Pairings must appear on the WC 2026 schedule.
 
-## Deploy (Vercel Services)
+## Deploy frontend (Vercel)
 
-Repo-root `vercel.json` ships the Vite frontend and FastAPI backend together:
-
-```bash
-npx vercel        # preview
-npx vercel --prod # production
-```
-
-Inference artifacts committed for the API:
-
-- `data/wc2026_predictions.json` — precomputed fixture predictions (required on Vercel; no xgboost at runtime)
-- `data/inference.db` — optional local slim DB for live model runs
-- `models/xgb_model.json`, `models/model_meta.json` — used when regenerating predictions locally
-
-After regenerating the full pipeline DB / retraining, refresh deploy artifacts:
+SPA only — set build env `VITE_API_BASE` to the Modal URL:
 
 ```bash
-.venv/bin/python -m pipeline.export_inference_db
-.venv/bin/python -m pipeline.export_wc_predictions
+npx vercel --prod
 ```
 
-Frontend calls `/api/*`; Vercel rewrites that to the FastAPI service.
-
-**Vercel project settings:** Root Directory must be empty (repo root), not `web/frontend`. Otherwise only the SPA builds and `/api` 404s.
-
-**Why precomputed?** Linux xgboost wheels exceed Vercel’s ~225MB serverless bundle limit. The API serves `wc2026_predictions.json` via `pipeline.wc_serve` instead.
+Artifacts for Modal: `models/xgb_model.json`, `models/model_meta.json`, `data/inference.db`.
 
 ## Frontend
 
